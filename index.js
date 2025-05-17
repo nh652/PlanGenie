@@ -132,6 +132,7 @@ app.post('/webhook', async (req, res) => {
 
     // Handle conversational queries first
     const conversationalResponses = {
+      'whatsup': ['Hey! I\'m doing great and ready to help you find the perfect mobile plan!', 'Not much, just here to help you find awesome mobile plans! What are you looking for?', 'All good! Ready to assist you with finding the best mobile plan for your needs!'],
       'hi': ['Hello! I\'m your mobile plan assistant. How can I help you today?', 'Hi there! I\'m here to help you find the perfect mobile plan. What are you looking for?', 'Hello! Ready to explore some great mobile plans with you!'],
       'hello': ['Hi! I\'m your dedicated plan advisor. What kind of plan are you interested in?', 'Hello there! I\'m here to help you find the best mobile plan for your needs.', 'Hello! Looking forward to helping you find your ideal plan today.'],
       'hey': ['Hey! Thanks for reaching out. How can I assist with your mobile plan search?', 'Hi there! Ready to help you discover the perfect plan for your needs.', 'Hey! Let\'s find you a great mobile plan today.'],
