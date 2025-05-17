@@ -314,12 +314,17 @@ app.post('/webhook', async (req, res) => {
       const voicePlans = plans.filter(plan => {
         // Check if the plan is explicitly categorized as "Voice only"
         const isVoicePlan = plan.category === "Voice only" || 
-                          // Check if data is 0GB
-                          plan.data === "0GB" ||
+                          // Check if data is 0GB or explicitly mentions no data
+                          plan.data === "0GB" || plan.data === "No data" ||
+                          // Check if the plan has zero data allocation
+                          plan.data?.toLowerCase().includes('0gb') ||
                           // Check if the benefits explicitly mention only voice/calls
+                          // and don't include data benefits
                           (plan.benefits && 
-                           plan.benefits.toLowerCase().includes("voice") && 
-                           !plan.benefits.toLowerCase().includes('data'));
+                           (plan.benefits.toLowerCase().includes("voice") ||
+                            plan.benefits.toLowerCase().includes("calls")) && 
+                           !plan.benefits.toLowerCase().includes('data') &&
+                           !plan.benefits.toLowerCase().includes('gb'));
 
         return isVoicePlan;
       });
