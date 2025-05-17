@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telecom Plan Finder</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    h1, h2 {
+      color: #0066cc;
+    }
+    .container {
+      background-color: white;
+      border-radius: 10px;
+      padding: 25px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #0055aa;
+    }
+    .results {
+      margin-top: 30px;
+    }
+    .plan-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      background-color: #f9f9f9;
+    }
+    .plan-card h3 {
+      margin-top: 0;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    .highlight {
+      font-weight: bold;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      color: #666;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Telecom Plan Finder</h1>
+    <p>Find the best telecom plans based on your requirements</p>
+
+    <form id="planForm">
+      <div class="form-group">
+        <label for="operator">Telecom Operator:</label>
+        <select id="operator" name="operator">
+          <option value="">Any Operator</option>
+          <option value="airtel">Airtel</option>
+          <option value="jio">Jio</option>
+          <option value="bsnl">BSNL</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="budget">Maximum Budget (₹):</label>
+        <input type="number" id="budget" name="budget" min="0" placeholder="e.g., 300">
+      </div>
+
+      <div class="form-group">
+        <label for="duration">Validity Duration (days):</label>
+        <input type="number" id="duration" name="duration" min="1" placeholder="e.g., 28">
+      </div>
+
+      <button type="submit">Find Plans</button>
+    </form>
+  </div>
+
+  <div class="container results" id="results" style="display:none;">
+    <h2>Recommended Plans</h2>
+    <div id="plansList"></div>
+  </div>
+
+  <div class="footer">
+    <p>Powered by Telecom Plan Finder API | Data updated regularly</p>
+  </div>
+
+  <script>
+    document.getElementById('planForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const operator = document.getElementById('operator').value;
+      const budget = document.getElementById('budget').value;
+      const duration = document.getElementById('duration').value;
+
+      // Build query string
+      let queryParams = [];
+      if (operator) queryParams.push(`operator=${operator}`);
+      if (budget) queryParams.push(`budget=${budget}`);
+      if (duration) queryParams.push(`duration=${duration}`);
+
+      const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+
+      try {
+        // Show loading state
+        document.getElementById('results').style.display = 'block';
+        document.getElementById('plansList').innerHTML = '<p>Loading plans...</p>';
+
+        // Fetch plans
+        const response = await fetch(`/api/plans${queryString}`);
+        const data = await response.json();
+
+        const plansListElement = document.getElementById('plansList');
+
+        // Handle response
+        if (data.error) {
+          plansListElement.innerHTML = `<p>Error: ${data.error}</p>`;
+          return;
+        }
+
+        if (data.message === "No exact matches found") {
+          plansListElement.innerHTML = `
+            <p>No plans exactly match your criteria, but here are some similar options:</p>
+          `;
+
+          data.similarPlans.forEach(plan => {
+            plansListElement.innerHTML += createPlanCard(plan);
+          });
+          return;
+        }
+
+        // Display plans
+        if (data.plans && data.plans.length > 0) {
+          plansListElement.innerHTML = `<p>Found ${data.count} plans. Showing top ${data.plans.length}:</p>`;
+
+          data.plans.forEach(plan => {
+            plansListElement.innerHTML += createPlanCard(plan);
+          });
+        } else {
+          plansListElement.innerHTML = '<p>No plans found matching your criteria.</p>';
+        }
+
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+        document.getElementById('plansList').innerHTML = `
+          <p>Sorry, we're having trouble accessing plans right now. Please try again later.</p>
+        `;
+      }
+    });
+
+    function createPlanCard(plan) {
+      const pricePerDay = (plan.price / plan.validityDays).toFixed(2);
+
+      return `
+        <div class="plan-card">
+          <h3>${plan.provider} Plan - ₹${plan.price}</h3>
+          <p><span class="highlight">Data:</span> ${plan.data}</p>
+          <p><span class="highlight">Validity:</span> ${plan.validityDays} days</p>
+          <p><span class="highlight">Price per day:</span> ₹${pricePerDay}</p>
+          <p><span class="highlight">Benefits:</span> ${plan.benefits}</p>
+          ${plan.additional_benefits ? `<p><span class="highlight">Additional:</span> ${plan.additional_benefits}</p>` : ''}
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
