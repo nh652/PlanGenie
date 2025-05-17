@@ -144,8 +144,19 @@ app.post('/webhook', async (req, res) => {
     // Check for conversational queries
     const normalizedQuery = queryText.toLowerCase().trim();
     for (const [trigger, responses] of Object.entries(conversationalResponses)) {
-      if (normalizedQuery.includes(trigger)) {
-        // Return a random response from the available options
+      // Add more variations of "how are you"
+      if (trigger === 'how are you' && (
+          normalizedQuery.includes('how are you') ||
+          normalizedQuery.includes('how are you doing') ||
+          normalizedQuery.includes('how you doing') ||
+          normalizedQuery.includes('how do you do') ||
+          normalizedQuery.includes('how\'re you')
+      )) {
+        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+        return res.json({ fulfillmentText: randomResponse });
+      }
+      // Handle other conversational triggers
+      else if (normalizedQuery.includes(trigger)) {
         const randomResponse = responses[Math.floor(Math.random() * responses.length)];
         return res.json({ fulfillmentText: randomResponse });
       }
