@@ -132,13 +132,13 @@ app.post('/webhook', async (req, res) => {
 
     // Handle conversational queries first
     const conversationalResponses = {
-      'hi': ['Hello! How can I help you today?', 'Hi there! Looking for a mobile plan?', 'Hello! Need help finding a plan?'],
-      'hello': ['Hi! How can I assist you?', 'Hello there! Need help with mobile plans?', 'Hello! Ready to find your perfect plan?'],
-      'hey': ['Hey! How can I help?', 'Hi there! Looking for a mobile plan?', 'Hey! Ready to find your perfect plan?'],
-      'how are you': ['I\'m doing great, thanks for asking! How can I help you today?', 'I\'m well, thanks! Ready to find you the perfect mobile plan?'],
-      'thanks': ['You\'re welcome! Let me know if you need anything else.', 'Happy to help! Need anything else?', 'Glad I could help! Feel free to ask about any other plans.'],
-      'thank you': ['You\'re welcome! Let me know if you need anything else.', 'Happy to help! Need anything else?', 'My pleasure! Feel free to ask about other plans.'],
-      'bye': ['Goodbye! Have a great day!', 'Take care! Come back if you need more help.', 'Bye! Feel free to return if you need assistance.']
+      'hi': ['Hello! I\'m your mobile plan assistant. How can I help you today?', 'Hi there! I\'m here to help you find the perfect mobile plan. What are you looking for?', 'Hello! Ready to explore some great mobile plans with you!'],
+      'hello': ['Hi! I\'m your dedicated plan advisor. What kind of plan are you interested in?', 'Hello there! I\'m here to help you find the best mobile plan for your needs.', 'Hello! Looking forward to helping you find your ideal plan today.'],
+      'hey': ['Hey! Thanks for reaching out. How can I assist with your mobile plan search?', 'Hi there! Ready to help you discover the perfect plan for your needs.', 'Hey! Let\'s find you a great mobile plan today.'],
+      'how are you': ['I\'m doing great, thanks for asking! I\'m excited to help you find the perfect mobile plan today. What are you looking for?', 'I\'m well and ready to assist you! Tell me what kind of mobile plan you\'re interested in.', 'I\'m excellent, thank you! Looking forward to helping you find your ideal plan. What features are important to you?'],
+      'thanks': ['You\'re welcome! I\'m glad I could help. Feel free to ask if you need to explore more plans!', 'Happy to assist! Don\'t hesitate to ask if you need to compare more options.', 'My pleasure! Remember, I\'m here whenever you need to find the right plan for you.'],
+      'thank you': ['You\'re welcome! I enjoyed helping you. Come back anytime to explore more plans!', 'It\'s my pleasure! Feel free to return if you need to compare more options.', 'Glad I could help! Don\'t hesitate to ask about any other plans or features.'],
+      'bye': ['Goodbye! Thanks for letting me help with your plan search. Have a great day!', 'Take care! Remember, I\'m here whenever you need to explore mobile plans.', 'Bye! Feel free to return anytime to find the perfect plan for you.']
     };
 
     // Check for conversational queries
