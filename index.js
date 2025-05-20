@@ -538,11 +538,24 @@ app.post('/webhook', async (req, res) => {
       return searchText.includes(feature.toLowerCase());
     }
 
+    // Initialize arrays for feature tracking
+    const availableFeatures = [];
+    const unavailableFeatures = [];
+
     // Filter plans based on requested features
     if (requestedFeatures.length > 0) {
       const plansWithFeatures = filtered.filter(plan => 
         requestedFeatures.every(feature => hasFeature(plan, feature))
       );
+      
+      // Check which features are available/unavailable
+      requestedFeatures.forEach(feature => {
+        if (filtered.some(plan => hasFeature(plan, feature))) {
+          availableFeatures.push(feature);
+        } else {
+          unavailableFeatures.push(feature);
+        }
+      });
       
       if (plansWithFeatures.length === 0) {
         // If no plans have all requested features, return early with a message
