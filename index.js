@@ -491,7 +491,7 @@ app.post('/webhook', async (req, res) => {
       console.log(`After daily data filtering, ${plans.length} plans remain`);
     }
 
-    
+
 
     // Filter plans
     const filtered = plans.filter(plan => {
@@ -552,7 +552,7 @@ app.post('/webhook', async (req, res) => {
       const plansWithFeatures = filtered.filter(plan => 
         requestedFeatures.every(feature => hasFeature(plan, feature))
       );
-      
+
       // Check which features are available/unavailable
       requestedFeatures.forEach(feature => {
         if (filtered.some(plan => hasFeature(plan, feature))) {
@@ -561,68 +561,37 @@ app.post('/webhook', async (req, res) => {
           unavailableFeatures.push(feature);
         }
       });
-      
+
       if (plansWithFeatures.length === 0) {
         // If no plans have all requested features, return early with a message
         responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()} plans found with ${requestedFeatures.join(' and ')}.`;
         console.log('Response:', responseText);
         return res.json({ fulfillmentText: responseText });
       }
-      
+
       // Update filtered plans to only include those with all requested features
       filtered = plansWithFeatures;
     }
 
-    // Sort plans based on user preference
-    if (sortBy === 'price') {
-      // Sort by price ascending (cheapest first)
-      filtered.sort((a, b) => {
-        const priceA = typeof a.price === 'string' ? parseInt(a.price.replace(/[^0-9]/g, '')) : a.price;
-        const priceB = typeof b.price === 'string' ? parseInt(b.price.replace(/[^0-9]/g, '')) : b.price;
-        return priceA - priceB;
+    // Special handling for international roaming query
+    const isInternationalQuery = queryText.toLowerCase().includes('international');
+    if (isInternationalQuery) {
+      const internationalPlans = filtered.filter(plan => {
+        const planText = [plan.benefits, plan.additional_benefits, plan.description]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return planText.includes('international') && planText.includes('roaming');
       });
-    } else if (sortBy === 'value') {
-      // Sort by best value (data per rupee)
-      filtered.sort((a, b) => {
-        const priceA = typeof a.price === 'string' ? parseInt(a.price.replace(/[^0-9]/g, '')) : a.price;
-        const priceB = typeof b.price === 'string' ? parseInt(b.price.replace(/[^0-9]/g, '')) : b.price;
 
-        const dataA = parseDataAllowance(a.data) || 0;
-        const dataB = parseDataAllowance(b.data) || 0;
-
-        // Calculate data per rupee ratio
-        const ratioA = priceA > 0 ? dataA / priceA : 0;
-        const ratioB = priceB > 0 ? dataB / priceB : 0;
-
-        return ratioB - ratioA; // Higher ratio first
-      });
-    } else {
-      // Default sort by price ascending
-      filtered.sort((a, b) => {
-        const priceA = typeof a.price === 'string' ? parseInt(a.price.replace(/[^0-9]/g, '')) : a.price;
-        const priceB = typeof b.price === 'string' ? parseInt(b.price.replace(/[^0-9]/g, '')) : b.price;
-        return priceA - priceB;
-      });
+      if (internationalPlans.length === 0) {
+        responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}international roaming plans found.`;
+        return res.json({ fulfillmentText: responseText });
+      }
+      filtered = internationalPlans;
     }
 
-    // Limit number of plans to prevent response from being too long
-    const MAX_PLANS_TO_SHOW = 8;
-    const plansToShow = filtered.slice(0, MAX_PLANS_TO_SHOW);
-
-    // Build response
-    let responseText = '';
-
-    // Add operator correction message if applicable
-    if (operatorCorrectionMessage) {
-      responseText += operatorCorrectionMessage + '\n';
-    }
-
-    // Add missing operator message if applicable
-    if (missingOperatorMessage) {
-      responseText += missingOperatorMessage + '\n';
-    }
-
-    // Add feature availability information
+    // Check which features are available/unavailable
     if (unavailableFeatures.length > 0) {
       responseText += `Note: None of these plans include ${unavailableFeatures.join(' or ')}.\n\n`;
     }
