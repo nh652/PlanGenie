@@ -491,17 +491,7 @@ app.post('/webhook', async (req, res) => {
       console.log(`After daily data filtering, ${plans.length} plans remain`);
     }
 
-    // Check if plan has a specific feature
-    function hasFeature(plan, feature) {
-      if (!plan || !feature) return false;
-
-      const searchText = [plan.benefits, plan.additional_benefits, plan.description]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-
-      return searchText.includes(feature.toLowerCase());
-    }
+    
 
     // Filter plans
     const filtered = plans.filter(plan => {
@@ -538,14 +528,24 @@ app.post('/webhook', async (req, res) => {
 
     console.log(`Filtered to ${filtered.length} matching plans`);
 
+    // Helper function to check if a plan has a specific feature
+    function hasFeature(plan, feature) {
+      if (!plan || !feature) return false;
+      const searchText = [plan.benefits, plan.additional_benefits, plan.description]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return searchText.includes(feature.toLowerCase());
+    }
+
     // Check which requested features are available
     const availableFeatures = [];
     const unavailableFeatures = [];
 
     if (requestedFeatures.length > 0) {
       requestedFeatures.forEach(feature => {
-        const hasFeature = filtered.some(plan => hasFeature(plan, feature));
-        if (hasFeature) {
+        const hasFeatureMatch = filtered.some(plan => hasFeature(plan, feature));
+        if (hasFeatureMatch) {
           availableFeatures.push(feature);
         } else {
           unavailableFeatures.push(feature);
