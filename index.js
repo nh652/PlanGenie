@@ -581,7 +581,7 @@ app.post('/webhook', async (req, res) => {
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
-        return planText.includes('international') && planText.includes('roaming');
+        return planText.includes('international') || planText.includes('iro');
       });
 
       if (internationalPlans.length === 0) {
@@ -590,6 +590,12 @@ app.post('/webhook', async (req, res) => {
       }
       filtered = internationalPlans;
     }
+
+    // Limit number of plans to prevent response from being too long
+    const MAX_PLANS_TO_SHOW = 8;
+    const plansToShow = filtered.slice(0, MAX_PLANS_TO_SHOW);
+
+    let responseText = '';
 
     // Check which features are available/unavailable
     if (unavailableFeatures.length > 0) {
