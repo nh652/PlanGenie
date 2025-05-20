@@ -491,6 +491,18 @@ app.post('/webhook', async (req, res) => {
       console.log(`After daily data filtering, ${plans.length} plans remain`);
     }
 
+    // Check if plan has a specific feature
+    function hasFeature(plan, feature) {
+      if (!plan || !feature) return false;
+
+      const searchText = [plan.benefits, plan.additional_benefits, plan.description]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchText.includes(feature.toLowerCase());
+    }
+
     // Filter plans
     const filtered = plans.filter(plan => {
       const validDays = parseValidity(plan.validity);
