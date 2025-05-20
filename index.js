@@ -581,11 +581,14 @@ app.post('/webhook', async (req, res) => {
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
-        return planText.includes('international') || planText.includes('iro');
+        return planText.includes('international roaming') || 
+               planText.includes('iro') || 
+               planText.includes('international call') ||
+               planText.includes('global roaming');
       });
 
       if (internationalPlans.length === 0) {
-        responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}international roaming plans found.`;
+        responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}international roaming plans found. Please check the operator's website or customer care for international roaming activation and rates.`;
         return res.json({ fulfillmentText: responseText });
       }
       filtered = internationalPlans;
