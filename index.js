@@ -538,19 +538,21 @@ app.post('/webhook', async (req, res) => {
       return searchText.includes(feature.toLowerCase());
     }
 
-    // Check which requested features are available
-    const availableFeatures = [];
-    const unavailableFeatures = [];
-
+    // Filter plans based on requested features
     if (requestedFeatures.length > 0) {
-      requestedFeatures.forEach(feature => {
-        const hasFeatureMatch = filtered.some(plan => hasFeature(plan, feature));
-        if (hasFeatureMatch) {
-          availableFeatures.push(feature);
-        } else {
-          unavailableFeatures.push(feature);
-        }
-      });
+      const plansWithFeatures = filtered.filter(plan => 
+        requestedFeatures.every(feature => hasFeature(plan, feature))
+      );
+      
+      if (plansWithFeatures.length === 0) {
+        // If no plans have all requested features, return early with a message
+        responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()} plans found with ${requestedFeatures.join(' and ')}.`;
+        console.log('Response:', responseText);
+        return res.json({ fulfillmentText: responseText });
+      }
+      
+      // Update filtered plans to only include those with all requested features
+      filtered = plansWithFeatures;
     }
 
     // Sort plans based on user preference
