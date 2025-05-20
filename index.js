@@ -542,6 +542,11 @@ app.post('/webhook', async (req, res) => {
     const availableFeatures = [];
     const unavailableFeatures = [];
 
+    // Add international roaming to requested features if query contains it
+    if (queryText.includes('international') && queryText.includes('roaming')) {
+      requestedFeatures.push('international roaming');
+    }
+
     // Filter plans based on requested features
     if (requestedFeatures.length > 0) {
       const plansWithFeatures = filtered.filter(plan => 
