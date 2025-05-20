@@ -19,6 +19,37 @@ app.get('/', (req, res) => {
   res.send('Telecom Plan Suggestion API is running');
 });
 
+// Operator name correction mapping
+const OPERATOR_CORRECTIONS = {
+  'geo': 'jio',
+  'artel': 'airtel',
+  'vodafone idea': 'vi',
+  'vodaphone': 'vi',
+  'idea': 'vi'
+};
+
+// Common misspellings and their corrections
+function correctOperatorName(input) {
+  if (!input) return null;
+
+  const lowerInput = input.toLowerCase();
+
+  // Check direct corrections first
+  if (OPERATOR_CORRECTIONS[lowerInput]) {
+    return OPERATOR_CORRECTIONS[lowerInput];
+  }
+
+  // Check for partial matches
+  if (lowerInput.includes('jio') || lowerInput.includes('geo')) return 'jio';
+  if (lowerInput.includes('airtel') || lowerInput.includes('artel')) return 'airtel';
+  if (lowerInput.includes('vi') || lowerInput.includes('vodafone') || lowerInput.includes('idea')) return 'vi';
+
+  return null;
+}
+
+// Available operators in our database
+const AVAILABLE_OPERATORS = ['jio', 'airtel', 'vi'];
+
 // Fetch and cache plans from GitHub, with User-Agent header
 async function getPlansData() {
   const now = Date.now();
@@ -119,6 +150,36 @@ function parseValidity(validity) {
   return match ? parseInt(match[1]) : null;
 }
 
+// Parse data allowance from plan description
+function parseDataAllowance(dataString) {
+  if (!dataString) return null;
+
+  // Handle unlimited cases
+  if (dataString.toLowerCase().includes('unlimited')) return Infinity;
+
+  // Extract GB amounts
+  const gbMatch = dataString.match(/(\d+(\.\d+)?)\s*GB/i);
+  if (gbMatch) return parseFloat(gbMatch[1]);
+
+  // Extract MB amounts and convert to GB
+  const mbMatch = dataString.match(/(\d+)\s*MB/i);
+  if (mbMatch) return parseFloat(mbMatch[1]) / 1024;
+
+  return null;
+}
+
+// Check if plan has a specific feature
+function hasFeature(plan, feature) {
+  if (!plan || !feature) return false;
+
+  const searchText = [plan.benefits, plan.additional_benefits, plan.description]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return searchText.includes(feature.toLowerCase());
+}
+
 // Main webhook endpoint
 app.post('/webhook', async (req, res) => {
   try {
@@ -149,6 +210,21 @@ app.post('/webhook', async (req, res) => {
         const randomResponse = responses[Math.floor(Math.random() * responses.length)];
         return res.json({ fulfillmentText: randomResponse });
       }
+    }
+
+    // Extract sorting preference (cheapest, best, etc.)
+    let sortBy = null;
+    if (queryText.includes('cheapest')) {
+      sortBy = 'price';
+    } else if (queryText.includes('best') || queryText.includes('highest') || queryText.includes('most')) {
+      sortBy = 'value';
+    }
+
+    // Extract minimum data requirement
+    let minDailyData = null;
+    const dailyDataMatch = queryText.match(/(\d+(\.\d+)?)\s*GB\s*(?:per day|daily)/i);
+    if (dailyDataMatch) {
+      minDailyData = parseFloat(dailyDataMatch[1]);
     }
 
     // Extract duration directly from query text first
@@ -187,15 +263,32 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // Operator extraction
+    // Operator extraction with spelling correction
     let operator = params.operator?.toLowerCase();
-    if (!operator) {
-      if (queryText.includes('jio')) operator = 'jio';
-      else if (queryText.includes('airtel')) operator = 'airtel';
-      else if (queryText.includes('vi') || queryText.includes('vodafone')) operator = 'vi';
+    let correctedOperator = null;
+    let operatorCorrectionMessage = '';
+
+    if (operator) {
+      correctedOperator = correctOperatorName(operator);
+      if (correctedOperator && correctedOperator !== operator) {
+        operatorCorrectionMessage = `(Assuming you meant ${correctedOperator.toUpperCase()} instead of ${operator.toUpperCase()}) `;
+        operator = correctedOperator;
+      }
+    } else {
+      // Try to extract operator from query text if not in params
+      if (queryText.includes('jio') || queryText.includes('geo')) operator = 'jio';
+      else if (queryText.includes('airtel') || queryText.includes('artel')) operator = 'airtel';
+      else if (queryText.includes('vi') || queryText.includes('vodafone') || queryText.includes('idea')) operator = 'vi';
     }
 
     console.log('Selected operator:', operator);
+
+    // Check if requested operator is available
+    let missingOperatorMessage = '';
+    if (operator && !AVAILABLE_OPERATORS.includes(operator)) {
+      missingOperatorMessage = `Note: I don't have information on ${operator.toUpperCase()} plans. `;
+      operator = null; // Reset to show all operators
+    }
 
     // Plan type detection (prepaid/postpaid)
     let planType = params.plan_type?.toLowerCase();
@@ -211,6 +304,26 @@ app.post('/webhook', async (req, res) => {
     }
 
     console.log('Selected plan type:', planType);
+
+    // Check for specific feature requests
+    const requestedFeatures = [];
+    if (queryText.includes('international roaming')) {
+      requestedFeatures.push('international roaming');
+    }
+    if (queryText.includes('ott')) {
+      requestedFeatures.push('ott');
+    }
+    if (queryText.includes('amazon prime') || queryText.includes('prime video')) {
+      requestedFeatures.push('amazon prime');
+    }
+    if (queryText.includes('netflix')) {
+      requestedFeatures.push('netflix');
+    }
+    if (queryText.includes('hotstar')) {
+      requestedFeatures.push('hotstar');
+    }
+
+    console.log('Requested features:', requestedFeatures);
 
     // Check if user is requesting voice-only or calling-only plans
     const isVoiceOnly = queryText.includes('voice only') || 
@@ -228,7 +341,7 @@ app.post('/webhook', async (req, res) => {
       console.log('Original duration parameter:', JSON.stringify(params.duration));
 
       // Handle Dialogflow's duration entities
-      if (typeof params.duration === 'object' && params.duration.amount) {
+      if (typeof params.duration === 'object' && params.duration.amount)) {
         const amount = params.duration.amount;
         const unit = params.duration.unit?.toLowerCase() || '';
 
@@ -258,7 +371,7 @@ app.post('/webhook', async (req, res) => {
     if (params.budget) {
       if (typeof params.budget === 'number') {
         budget = params.budget;
-      } else if (typeof params.budget === 'object' && params.budget.amount) {
+      } else if (typeof params.budget === 'object' && params.budget.amount)) {
         budget = params.budget.amount;
       } else if (typeof params.budget === 'string') {
         // Try to extract a number from the string
@@ -337,7 +450,7 @@ app.post('/webhook', async (req, res) => {
         const hasZeroData = plan.data === "0GB" || 
                            plan.data === "No data" ||
                            plan.data?.toLowerCase().includes('0gb');
-                           
+
         // Check if benefits only mention voice/calls and SMS
         const onlyVoiceAndSMS = plan.benefits && 
                                !plan.benefits.toLowerCase().includes('data') &&
@@ -358,6 +471,24 @@ app.post('/webhook', async (req, res) => {
         // but add a note in the response
         console.log("No specific voice-only plans found, continuing with all plans");
       }
+    }
+
+    // Filter plans by minimum daily data if requested
+    if (minDailyData) {
+      plans = plans.filter(plan => {
+        const dataAmount = parseDataAllowance(plan.data);
+        if (!dataAmount) return false; // Exclude plans with no data or unparseable data
+
+        // Get validity in days
+        const validityDays = parseValidity(plan.validity) || 1;
+
+        // Calculate daily data (total data divided by validity)
+        const dailyData = dataAmount / validityDays;
+
+        return dailyData >= minDailyData;
+      });
+
+      console.log(`After daily data filtering, ${plans.length} plans remain`);
     }
 
     // Filter plans
@@ -395,12 +526,52 @@ app.post('/webhook', async (req, res) => {
 
     console.log(`Filtered to ${filtered.length} matching plans`);
 
-    // Sort by price ascending
-    filtered.sort((a, b) => {
-      const priceA = typeof a.price === 'string' ? parseInt(a.price.replace(/[^0-9]/g, '')) : a.price;
-      const priceB = typeof b.price === 'string' ? parseInt(b.price.replace(/[^0-9]/g, '')) : b.price;
-      return priceA - priceB;
-    });
+    // Check which requested features are available
+    const availableFeatures = [];
+    const unavailableFeatures = [];
+
+    if (requestedFeatures.length > 0) {
+      requestedFeatures.forEach(feature => {
+        const hasFeature = filtered.some(plan => hasFeature(plan, feature));
+        if (hasFeature) {
+          availableFeatures.push(feature);
+        } else {
+          unavailableFeatures.push(feature);
+        }
+      });
+    }
+
+    // Sort plans based on user preference
+    if (sortBy === 'price') {
+      // Sort by price ascending (cheapest first)
+      filtered.sort((a, b) => {
+        const priceA = typeof a.price === 'string' ? parseInt(a.price.replace(/[^0-9]/g, '')) : a.price;
+        const priceB = typeof b.price === 'string' ? parseInt(b.price.replace(/[^0-9]/g, '')) : b.price;
+        return priceA - priceB;
+      });
+    } else if (sortBy === 'value') {
+      // Sort by best value (data per rupee)
+      filtered.sort((a, b) => {
+        const priceA = typeof a.price === 'string' ? parseInt(a.price.replace(/[^0-9]/g, '')) : a.price;
+        const priceB = typeof b.price === 'string' ? parseInt(b.price.replace(/[^0-9]/g, '')) : b.price;
+
+        const dataA = parseDataAllowance(a.data) || 0;
+        const dataB = parseDataAllowance(b.data) || 0;
+
+        // Calculate data per rupee ratio
+        const ratioA = priceA > 0 ? dataA / priceA : 0;
+        const ratioB = priceB > 0 ? dataB / priceB : 0;
+
+        return ratioB - ratioA; // Higher ratio first
+      });
+    } else {
+      // Default sort by price ascending
+      filtered.sort((a, b) => {
+        const priceA = typeof a.price === 'string' ? parseInt(a.price.replace(/[^0-9]/g, '')) : a.price;
+        const priceB = typeof b.price === 'string' ? parseInt(b.price.replace(/[^0-9]/g, '')) : b.price;
+        return priceA - priceB;
+      });
+    }
 
     // Limit number of plans to prevent response from being too long
     const MAX_PLANS_TO_SHOW = 8;
@@ -408,6 +579,22 @@ app.post('/webhook', async (req, res) => {
 
     // Build response
     let responseText = '';
+
+    // Add operator correction message if applicable
+    if (operatorCorrectionMessage) {
+      responseText += operatorCorrectionMessage + '\n';
+    }
+
+    // Add missing operator message if applicable
+    if (missingOperatorMessage) {
+      responseText += missingOperatorMessage + '\n';
+    }
+
+    // Add feature availability information
+    if (unavailableFeatures.length > 0) {
+      responseText += `Note: None of these plans include ${unavailableFeatures.join(' or ')}.\n\n`;
+    }
+
     if (plansToShow.length > 0) {
       // Include budget in the response if specified
       const budgetText = budget ? ` under ₹${budget}` : '';
@@ -415,7 +602,11 @@ app.post('/webhook', async (req, res) => {
       // Add voice-only to the description if requested
       const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
 
-      responseText = `Here are ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans${budgetText}${targetDuration ? ' with ' + targetDuration + ' days validity' : ''}:\n\n` +
+      // Add sorting information if specified
+      const sortText = sortBy === 'price' ? ' (cheapest first)' : 
+                      sortBy === 'value' ? ' (best value first)' : '';
+
+      responseText += `Here are ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans${budgetText}${targetDuration ? ' with ' + targetDuration + ' days validity' : ''}${sortText}:\n\n` +
         plansToShow.map(plan => {
           // Handle different validity formats and undefined values
           let validity = '';
@@ -462,7 +653,7 @@ app.post('/webhook', async (req, res) => {
           // Add voice-only to the description if requested
           const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
 
-          responseText = `No exact ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans with ${targetDuration} days validity${budgetText} found. Here are some alternatives:\n\n` +
+          responseText += `No exact ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans with ${targetDuration} days validity${budgetText} found. Here are some alternatives:\n\n` +
             similarPlans.map(item => {
               const plan = item.plan;
               // Handle different validity formats and undefined values
@@ -491,21 +682,21 @@ app.post('/webhook', async (req, res) => {
           // Add voice-only to the description if requested
           const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
 
-          responseText = `No matching ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans found with ${targetDuration} days validity${budgetText}. Try adjusting your filters.`;
+          responseText += `No matching ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans found with ${targetDuration} days validity${budgetText}. Try adjusting your filters.`;
         }
       } else if (budget && plans.length > 0) {
         // If we're just filtering by budget and nothing matches
         // Add voice-only to the description if requested
         const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
 
-        responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans found under ₹${budget}. The cheapest available plan is ₹${Math.min(...plans.map(p => p.price))}.`;
+        responseText += `No ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans found under ₹${budget}. The cheapest available plan is ₹${Math.min(...plans.map(p => p.price))}.`;
       } else if (plans.length > 0) {
         // If we have no plans matching filters but we have plans for this operator and type
         const budgetText = budget ? ` under ₹${budget}` : '';
         // Add voice-only to the description if requested
         const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
 
-        responseText = `No matching ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans found${targetDuration ? ' with ' + targetDuration + ' days validity' : ''}${budgetText}.`;
+        responseText += `No matching ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans found${targetDuration ? ' with ' + targetDuration + ' days validity' : ''}${budgetText}.`;
         if (targetDuration || budget) {
           responseText += ' Try adjusting your filters.';
         }
@@ -514,7 +705,7 @@ app.post('/webhook', async (req, res) => {
         // Add voice-only to the description if requested
         const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
 
-        responseText = `No ${planType.toUpperCase()}${voiceText} plans available for ${operator ? operator.toUpperCase() : 'any operator'}. Would you like to check ${planType === 'prepaid' ? 'postpaid' : 'prepaid'} plans instead?`;
+        responseText += `No ${planType.toUpperCase()}${voiceText} plans available for ${operator ? operator.toUpperCase() : 'any operator'}. Would you like to check ${planType === 'prepaid' ? 'postpaid' : 'prepaid'} plans instead?`;
       }
     }
 
