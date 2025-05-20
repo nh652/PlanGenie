@@ -341,7 +341,7 @@ app.post('/webhook', async (req, res) => {
       console.log('Original duration parameter:', JSON.stringify(params.duration));
 
       // Handle Dialogflow's duration entities
-      if (typeof params.duration === 'object' && params.duration.amount)) {
+      if (typeof params.duration === 'object' && params.duration.amount) {
         const amount = params.duration.amount;
         const unit = params.duration.unit?.toLowerCase() || '';
 
@@ -371,7 +371,7 @@ app.post('/webhook', async (req, res) => {
     if (params.budget) {
       if (typeof params.budget === 'number') {
         budget = params.budget;
-      } else if (typeof params.budget === 'object' && params.budget.amount)) {
+      } else if (typeof params.budget === 'object' && params.budget.amount) {
         budget = params.budget.amount;
       } else if (typeof params.budget === 'string') {
         // Try to extract a number from the string
