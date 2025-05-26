@@ -2,26 +2,106 @@
 import fetch from 'node-fetch';
 import { CONFIG } from '../config/constants.js';
 import { parseValidity, parseDataAllowance, hasFeature } from '../utils/textParser.js';
+import { ExternalAPIError, PlanNotFoundError } from '../utils/errors.js';
 
 // Cache configuration
 let cachedPlans = null;
 let lastFetchTime = 0;
 
-// Fetch and cache plans from GitHub, with User-Agent header
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 10000, // 10 seconds
+  backoffFactor: 2
+};
+
+// Sleep utility for retry delays
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Fetch with retry logic
+async function fetchWithRetry(url, options, retryCount = 0) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response;
+  } catch (error) {
+    console.error(`Fetch attempt ${retryCount + 1} failed:`, error.message);
+
+    // Don't retry on certain errors
+    if (error.name === 'AbortError') {
+      throw new ExternalAPIError('Request timeout while fetching plans data');
+    }
+
+    if (error.message.includes('404')) {
+      throw new ExternalAPIError('Plans data source not found');
+    }
+
+    // Retry logic
+    if (retryCount < RETRY_CONFIG.maxRetries) {
+      const delay = Math.min(
+        RETRY_CONFIG.baseDelay * Math.pow(RETRY_CONFIG.backoffFactor, retryCount),
+        RETRY_CONFIG.maxDelay
+      );
+      
+      console.log(`Retrying in ${delay}ms... (attempt ${retryCount + 2}/${RETRY_CONFIG.maxRetries + 1})`);
+      await sleep(delay);
+      
+      return fetchWithRetry(url, options, retryCount + 1);
+    }
+
+    // All retries exhausted
+    throw new ExternalAPIError(`Failed to fetch plans data after ${RETRY_CONFIG.maxRetries + 1} attempts: ${error.message}`);
+  }
+}
+
+// Fetch and cache plans from GitHub, with User-Agent header and retry logic
 export async function getPlansData() {
   const now = Date.now();
   if (!cachedPlans || now - lastFetchTime > CONFIG.CACHE_DURATION) {
     try {
-      const response = await fetch(CONFIG.JSON_URL, {
+      console.log('Fetching fresh plans data...');
+      const response = await fetchWithRetry(CONFIG.JSON_URL, {
         headers: {
-          'User-Agent': 'TelecomPlanBot/1.0'
+          'User-Agent': 'TelecomPlanBot/1.0',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
         }
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      cachedPlans = await response.json();
+
+      const data = await response.json();
+      
+      // Validate the response structure
+      if (!data || !data.telecom_providers) {
+        throw new ExternalAPIError('Invalid plans data structure received');
+      }
+
+      cachedPlans = data;
       lastFetchTime = now;
+      console.log('Plans data fetched and cached successfully');
     } catch (error) {
       console.error('Failed to fetch plans:', error);
+      
+      // If we have cached data and it's not too old (within 24 hours), use it
+      if (cachedPlans && now - lastFetchTime < 24 * 60 * 60 * 1000) {
+        console.log('Using stale cached data due to fetch failure');
+        return cachedPlans;
+      }
+      
       throw error;
     }
   }
@@ -75,12 +155,20 @@ export function flattenPostpaidPlans(postpaidData) {
 
 // Get plans for specific operator and plan type
 export async function getPlansForOperator(operator, planType) {
-  const data = await getPlansData();
-  let plans = [];
+  try {
+    const data = await getPlansData();
+    let plans = [];
 
-  if (operator) {
-    const provider = data.telecom_providers[operator];
-    if (provider?.plans?.[planType]) {
+    if (operator) {
+      const provider = data.telecom_providers[operator];
+      if (!provider) {
+        throw new PlanNotFoundError(`No data available for operator: ${operator.toUpperCase()}`);
+      }
+
+      if (!provider.plans || !provider.plans[planType]) {
+        throw new PlanNotFoundError(`No ${planType} plans available for ${operator.toUpperCase()}`);
+      }
+
       // For postpaid plans which might have a different structure
       if (planType === 'postpaid') {
         const postpaidPlans = provider.plans.postpaid;
@@ -94,32 +182,47 @@ export async function getPlansForOperator(operator, planType) {
         // For prepaid plans, use existing flattening function
         plans = flattenPrepaidPlans(provider.plans[planType]).map(p => ({ ...p, provider: operator }));
       }
-    }
-    console.log(`Found ${plans.length} ${planType} plans for ${operator}`);
-  } else {
-    // Search all providers if no operator specified
-    for (const op of Object.keys(data.telecom_providers)) {
-      const provider = data.telecom_providers[op];
-      if (provider?.plans?.[planType]) {
-        let operatorPlans = [];
-        if (planType === 'postpaid') {
-          const postpaidPlans = provider.plans.postpaid;
-          if (Array.isArray(postpaidPlans)) {
-            operatorPlans = postpaidPlans;
-          } else if (typeof postpaidPlans === 'object' && postpaidPlans !== null) {
-            // Handle nested postpaid structure if needed
-            operatorPlans = flattenPostpaidPlans(postpaidPlans);
+      console.log(`Found ${plans.length} ${planType} plans for ${operator}`);
+    } else {
+      // Search all providers if no operator specified
+      for (const op of Object.keys(data.telecom_providers)) {
+        const provider = data.telecom_providers[op];
+        if (provider?.plans?.[planType]) {
+          let operatorPlans = [];
+          if (planType === 'postpaid') {
+            const postpaidPlans = provider.plans.postpaid;
+            if (Array.isArray(postpaidPlans)) {
+              operatorPlans = postpaidPlans;
+            } else if (typeof postpaidPlans === 'object' && postpaidPlans !== null) {
+              // Handle nested postpaid structure if needed
+              operatorPlans = flattenPostpaidPlans(postpaidPlans);
+            }
+          } else {
+            operatorPlans = flattenPrepaidPlans(provider.plans[planType]);
           }
-        } else {
-          operatorPlans = flattenPrepaidPlans(provider.plans[planType]);
+          plans.push(...operatorPlans.map(p => ({ ...p, provider: op })));
         }
-        plans.push(...operatorPlans.map(p => ({ ...p, provider: op })));
       }
+      console.log(`Found ${plans.length} total ${planType} plans across all operators`);
     }
-    console.log(`Found ${plans.length} total ${planType} plans across all operators`);
-  }
 
-  return plans;
+    // Validate that we have valid plan data
+    if (plans.length === 0) {
+      throw new PlanNotFoundError(`No ${planType} plans found${operator ? ` for ${operator.toUpperCase()}` : ''}`);
+    }
+
+    // Validate plan structure
+    plans.forEach((plan, index) => {
+      if (!plan.price || !plan.data) {
+        console.warn(`Plan at index ${index} has missing required fields:`, plan);
+      }
+    });
+
+    return plans;
+  } catch (error) {
+    console.error('Error in getPlansForOperator:', error);
+    throw error;
+  }
 }
 
 // Filter plans by voice-only requirements

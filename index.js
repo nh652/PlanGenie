@@ -18,9 +18,31 @@ import {
   findSimilarPlans,
   checkFeatureAvailability
 } from './services/planService.js';
+import { 
+  errorHandler, 
+  asyncHandler, 
+  validateWebhookRequest 
+} from './middleware/errorHandler.js';
+import { 
+  ValidationError, 
+  OperatorNotSupportedError,
+  PlanNotFoundError 
+} from './utils/errors.js';
 
 const app = express();
-app.use(bodyParser.json());
+
+// Body parser with error handling
+app.use(bodyParser.json({ 
+  limit: '10mb',
+  strict: true 
+}));
+
+// Request timeout middleware
+app.use((req, res, next) => {
+  req.setTimeout(30000); // 30 second timeout
+  next();
+});
+
 const port = CONFIG.PORT;
 
 // Root endpoint for Replit preview
@@ -28,16 +50,21 @@ app.get('/', (req, res) => {
   res.send('Telecom Plan Suggestion API is running');
 });
 
-// Main webhook endpoint
-app.post('/webhook', async (req, res) => {
-  try {
-    console.log('Received webhook request:', JSON.stringify(req.body));
-    const { queryResult } = req.body;
-    const params = queryResult.parameters || {};
-    const queryText = (queryResult.queryText || '').toLowerCase();
+// Main webhook endpoint with validation and error handling
+app.post('/webhook', validateWebhookRequest, asyncHandler(async (req, res) => {
+  console.log('Received webhook request:', JSON.stringify(req.body));
+  
+  const { queryResult } = req.body;
+  const params = queryResult.parameters || {};
+  const queryText = (queryResult.queryText || '').toLowerCase();
 
-    console.log('Parameters:', JSON.stringify(params));
-    console.log('Query text:', queryText);
+  console.log('Parameters:', JSON.stringify(params));
+  console.log('Query text:', queryText);
+
+  // Validate query text length
+  if (queryText.length > 500) {
+    throw new ValidationError('Query text is too long (maximum 500 characters)');
+  }
 
     // Handle conversational queries first
     const normalizedQuery = queryText.toLowerCase().trim();
@@ -84,6 +111,7 @@ app.post('/webhook', async (req, res) => {
     // Check if requested operator is available
     let missingOperatorMessage = '';
     if (operator && !CONFIG.AVAILABLE_OPERATORS.includes(operator)) {
+      // For unsupported operators, we'll set a note but continue
       missingOperatorMessage = `Note: I don't have information on ${operator.toUpperCase()} plans. `;
       operator = null; // Reset to show all operators
     }
@@ -138,8 +166,24 @@ app.post('/webhook', async (req, res) => {
     const budget = processBudgetParameter(params, queryText);
     console.log('Extracted budget:', budget);
 
-    // Get plans data
-    let plans = await getPlansForOperator(operator, planType);
+    // Get plans data with error handling
+    let plans;
+    try {
+      plans = await getPlansForOperator(operator, planType);
+    } catch (error) {
+      if (error instanceof PlanNotFoundError) {
+        // Handle case where no plans are found for the specified criteria
+        const responseText = `${missingOperatorMessage}${error.message}. Try adjusting your search criteria or checking other operators.`;
+        return res.json({ fulfillmentText: responseText });
+      }
+      // Re-throw other errors to be handled by global error handler
+      throw error;
+    }
+
+    // Validate that plans is an array
+    if (!Array.isArray(plans)) {
+      throw new Error('Invalid plans data format received');
+    }
 
     // Log some sample plans for debugging
     if (plans.length > 0) {
@@ -331,14 +375,58 @@ app.post('/webhook', async (req, res) => {
 
     console.log('Response:', responseText);
     res.json({ fulfillmentText: responseText });
+}));
 
-  } catch (error) {
-    console.error('Webhook error:', error);
-    res.json({ fulfillmentText: 'Sorry, we encountered an error. Please try again later.' });
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// Handle 404 for undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({
+    fulfillmentText: 'Endpoint not found',
+    error: {
+      code: 'NOT_FOUND',
+      message: `Route ${req.originalUrl} not found`
+    }
+  });
+});
+
+// Global error handling middleware (must be last)
+app.use(errorHandler);
+
+// Start server with error handling
+const server = app.listen(port, '0.0.0.0', () => {
+  console.log(`Server running on port ${port}`);
+});
+
+// Handle server errors
+server.on('error', (error) => {
+  console.error('Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use`);
+    process.exit(1);
   }
 });
 
-// Start server
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Server running on port ${port}`);
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
