@@ -1,231 +1,32 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import fetch from 'node-fetch';
-
-// Add this right after your imports and before any other code
-const CONFIG = {
-  // Server settings
-  PORT: process.env.PORT || 3000,
-  
-  // External API
-  JSON_URL: 'https://raw.githubusercontent.com/nh652/TelcoPlans/main/telecom_plans_improved.json',
-  
-  // Cache settings
-  CACHE_DURATION: 3600000, // 1 hour
-  
-  // Response limits
-  MAX_PLANS_TO_SHOW: 8,
-  
-  // Available operators
-  AVAILABLE_OPERATORS: ['jio', 'airtel', 'vi'],
-  
-  // Operator name corrections
-  OPERATOR_CORRECTIONS: {
-    'geo': 'jio',
-    'artel': 'airtel',
-    'vodafone idea': 'vi',
-    'vodaphone': 'vi',
-    'idea': 'vi'
-  },
-  
-  // Duration mappings for month expressions
-  MONTH_MAPPINGS: {
-    '1 month': 28,
-    'one month': 28,
-    'a month': 28,
-    '2 month': 56,
-    'two month': 56,
-    '2 months': 56,
-    'two months': 56,
-    '3 month': 84,
-    'three month': 84,
-    '3 months': 84,
-    'three months': 84
-  },
-  
-  // Conversational responses
-  CONVERSATIONAL_RESPONSES: {
-    'hi': ['Hello! How can I help you today?', 'Hi there! Looking for a mobile plan?', 'Hello! Need help finding a plan?'],
-    'hello': ['Hi! How can I assist you?', 'Hello there! Need help with mobile plans?', 'Hello! Ready to find your perfect plan?'],
-    'hey': ['Hey! How can I help?', 'Hi there! Looking for a mobile plan?', 'Hey! Ready to find your perfect plan?'],
-    'how are you': ['I\'m doing great, thanks for asking! How can I help you today?', 'I\'m well, thanks! Ready to find you the perfect mobile plan?'],
-    'thanks': ['You\'re welcome! Let me know if you need anything else.', 'Happy to help! Need anything else?', 'Glad I could help! Feel free to ask about any other plans.'],
-    'thank you': ['You\'re welcome! Let me know if you need anything else.', 'Happy to help! Need anything else?', 'My pleasure! Feel free to ask about other plans.'],
-    'bye': ['Goodbye! Have a great day!', 'Take care! Come back if you need more help.', 'Bye! Feel free to return if you need assistance.']
-  }
-};
+import { CONFIG } from './config/constants.js';
+import { 
+  correctOperatorName, 
+  extractOperatorFromQuery,
+  extractDailyDataFromQuery,
+  processDurationParameter,
+  processBudgetParameter
+} from './utils/textParser.js';
+import {
+  getPlansForOperator,
+  filterVoiceOnlyPlans,
+  filterByDailyData,
+  filterPlansByConstraints,
+  filterPlansByFeatures,
+  filterInternationalPlans,
+  findSimilarPlans,
+  checkFeatureAvailability
+} from './services/planService.js';
 
 const app = express();
 app.use(bodyParser.json());
 const port = CONFIG.PORT;
 
-// Your GitHub JSON URL
-const JSON_URL = CONFIG.JSON_URL;
-
-// Cache configuration
-let cachedPlans = null;
-let lastFetchTime = 0;
-const CACHE_DURATION = CONFIG.CACHE_DURATION;
-
 // Root endpoint for Replit preview
 app.get('/', (req, res) => {
   res.send('Telecom Plan Suggestion API is running');
 });
-
-// Operator name correction mapping
-const OPERATOR_CORRECTIONS = CONFIG.OPERATOR_CORRECTIONS;
-
-// Common misspellings and their corrections
-function correctOperatorName(input) {
-  if (!input) return null;
-
-  const lowerInput = input.toLowerCase();
-
-  // Check direct corrections first
-  if (OPERATOR_CORRECTIONS[lowerInput]) {
-    return OPERATOR_CORRECTIONS[lowerInput];
-  }
-
-  // Check for partial matches
-  if (lowerInput.includes('jio') || lowerInput.includes('geo')) return 'jio';
-  if (lowerInput.includes('airtel') || lowerInput.includes('artel')) return 'airtel';
-  if (lowerInput.includes('vi') || lowerInput.includes('vodafone') || lowerInput.includes('idea')) return 'vi';
-
-  return null;
-}
-
-// Available operators in our database
-const AVAILABLE_OPERATORS = CONFIG.AVAILABLE_OPERATORS;
-
-// Fetch and cache plans from GitHub, with User-Agent header
-async function getPlansData() {
-  const now = Date.now();
-  if (!cachedPlans || now - lastFetchTime > CACHE_DURATION) {
-    try {
-      const response = await fetch(JSON_URL, {
-        headers: {
-          'User-Agent': 'TelecomPlanBot/1.0'
-        }
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      cachedPlans = await response.json();
-      lastFetchTime = now;
-    } catch (error) {
-      console.error('Failed to fetch plans:', error);
-      throw error;
-    }
-  }
-  return cachedPlans;
-}
-
-// Flatten all nested prepaid plans for any operator
-function flattenPrepaidPlans(prepaidData) {
-  let plans = [];
-  for (const category of Object.values(prepaidData)) {
-    if (Array.isArray(category)) {
-      plans.push(...category);
-    } else if (typeof category === 'object' && category !== null) {
-      for (const subCategory of Object.values(category)) {
-        if (Array.isArray(subCategory)) plans.push(...subCategory);
-      }
-    }
-  }
-  return plans;
-}
-
-// Flatten all nested postpaid plans for any operator
-function flattenPostpaidPlans(postpaidData) {
-  let plans = [];
-
-  // If it's already an array, return it directly
-  if (Array.isArray(postpaidData)) {
-    return postpaidData;
-  }
-
-  // Handle different possible nesting structures for postpaid plans
-  for (const category of Object.values(postpaidData)) {
-    if (Array.isArray(category)) {
-      plans.push(...category);
-    } else if (typeof category === 'object' && category !== null) {
-      // Might have additional nesting levels
-      for (const subCategory of Object.values(category)) {
-        if (Array.isArray(subCategory)) {
-          plans.push(...subCategory);
-        } else if (typeof subCategory === 'object' && subCategory !== null) {
-          // Handle potential third level nesting
-          for (const thirdLevel of Object.values(subCategory)) {
-            if (Array.isArray(thirdLevel)) plans.push(...thirdLevel);
-          }
-        }
-      }
-    }
-  }
-  return plans;
-}
-
-// Convert validity to days (handles numbers and strings)
-function parseValidity(validity) {
-  if (typeof validity === 'number') return validity;
-  if (!validity) return null;
-
-  // Handle validity as string
-  const str = validity.toString().toLowerCase();
-  if (str === 'base plan' || str === 'plan validity' || str === 'bill cycle') return null;
-
-  // Handle different time units
-  if (str.includes('month')) {
-    const monthMatch = str.match(/(\d+)/);
-    return monthMatch ? parseInt(monthMatch[1]) * 30 : null;
-  }
-  if (str.includes('week')) {
-    const weekMatch = str.match(/(\d+)/);
-    return weekMatch ? parseInt(weekMatch[1]) * 7 : null;
-  }
-  if (str.includes('year')) {
-    const yearMatch = str.match(/(\d+)/);
-    return yearMatch ? parseInt(yearMatch[1]) * 365 : null;
-  }
-
-  // Handle special case for day units
-  if (str.includes('day')) {
-    const dayMatch = str.match(/(\d+)\s*days?/i);
-    return dayMatch ? parseInt(dayMatch[1]) : null;
-  }
-
-  // Extract just the number for day values as fallback
-  const match = str.match(/(\d+)/);
-  return match ? parseInt(match[1]) : null;
-}
-
-// Parse data allowance from plan description
-function parseDataAllowance(dataString) {
-  if (!dataString) return null;
-
-  // Handle unlimited cases
-  if (dataString.toLowerCase().includes('unlimited')) return Infinity;
-
-  // Extract GB amounts
-  const gbMatch = dataString.match(/(\d+(\.\d+)?)\s*GB/i);
-  if (gbMatch) return parseFloat(gbMatch[1]);
-
-  // Extract MB amounts and convert to GB
-  const mbMatch = dataString.match(/(\d+)\s*MB/i);
-  if (mbMatch) return parseFloat(mbMatch[1]) / 1024;
-
-  return null;
-}
-
-// Check if plan has a specific feature
-function hasFeature(plan, feature) {
-  if (!plan || !feature) return false;
-
-  const searchText = [plan.benefits, plan.additional_benefits, plan.description]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-
-  return searchText.includes(feature.toLowerCase());
-}
 
 // Main webhook endpoint
 app.post('/webhook', async (req, res) => {
@@ -239,11 +40,8 @@ app.post('/webhook', async (req, res) => {
     console.log('Query text:', queryText);
 
     // Handle conversational queries first
-    const conversationalResponses = CONFIG.CONVERSATIONAL_RESPONSES;
-
-    // Check for conversational queries
     const normalizedQuery = queryText.toLowerCase().trim();
-    for (const [trigger, responses] of Object.entries(conversationalResponses)) {
+    for (const [trigger, responses] of Object.entries(CONFIG.CONVERSATIONAL_RESPONSES)) {
       if (normalizedQuery.includes(trigger)) {
         // Return a random response from the available options
         const randomResponse = responses[Math.floor(Math.random() * responses.length)];
@@ -260,35 +58,10 @@ app.post('/webhook', async (req, res) => {
     }
 
     // Extract minimum data requirement
-    let minDailyData = null;
-    const dailyDataMatch = queryText.match(/(\d+(\.\d+)?)\s*GB\s*(?:per day|daily)/i);
-    if (dailyDataMatch) {
-      minDailyData = parseFloat(dailyDataMatch[1]);
-    }
+    const minDailyData = extractDailyDataFromQuery(queryText);
 
-    // Extract duration directly from query text first
-    let targetDuration = null;
-
-    // First check for month expressions
-    const monthMap = CONFIG.MONTH_MAPPINGS;
-
-    // Check for month-based expressions first
-    for (const [monthExpr, days] of Object.entries(monthMap)) {
-      if (queryText.includes(monthExpr)) {
-        targetDuration = days;
-        console.log(`Mapped "${monthExpr}" to ${days} days validity`);
-        break;
-      }
-    }
-
-    // If no month expression found, try direct days extraction
-    if (!targetDuration) {
-      const daysMatch = queryText.match(/(\d+)\s*days?/i);
-      if (daysMatch) {
-        targetDuration = parseInt(daysMatch[1]);
-        console.log('Duration directly extracted from query text:', targetDuration);
-      }
-    }
+    // Extract duration
+    const targetDuration = processDurationParameter(params, queryText);
 
     // Operator extraction with spelling correction
     let operator = params.operator?.toLowerCase();
@@ -303,16 +76,14 @@ app.post('/webhook', async (req, res) => {
       }
     } else {
       // Try to extract operator from query text if not in params
-      if (queryText.includes('jio') || queryText.includes('geo')) operator = 'jio';
-      else if (queryText.includes('airtel') || queryText.includes('artel')) operator = 'airtel';
-      else if (queryText.includes('vi') || queryText.includes('vodafone') || queryText.includes('idea')) operator = 'vi';
+      operator = extractOperatorFromQuery(queryText);
     }
 
     console.log('Selected operator:', operator);
 
     // Check if requested operator is available
     let missingOperatorMessage = '';
-    if (operator && !AVAILABLE_OPERATORS.includes(operator)) {
+    if (operator && !CONFIG.AVAILABLE_OPERATORS.includes(operator)) {
       missingOperatorMessage = `Note: I don't have information on ${operator.toUpperCase()} plans. `;
       operator = null; // Reset to show all operators
     }
@@ -363,106 +134,12 @@ app.post('/webhook', async (req, res) => {
 
     console.log('Voice-only plan requested:', isVoiceOnly);
 
-    // Only attempt to process duration from params if we didn't already extract it from query text
-    if (!targetDuration && params.duration) {
-      console.log('Original duration parameter:', JSON.stringify(params.duration));
-
-      // Handle Dialogflow's duration entities
-      if (typeof params.duration === 'object' && params.duration.amount) {
-        const amount = params.duration.amount;
-        const unit = params.duration.unit?.toLowerCase() || '';
-
-        if (unit.includes('month')) {
-          // Map months to days according to Indian telecom standards
-          if (amount === 1) targetDuration = 28;
-          else if (amount === 2) targetDuration = 56;
-          else if (amount === 3) targetDuration = 84;
-          else targetDuration = Math.round(amount * 30); // Approximate for other values
-        }
-        else if (unit.includes('week')) targetDuration = amount * 7;
-        else if (unit.includes('year')) targetDuration = amount * 365;
-        else targetDuration = amount; // Assume days
-      } else if (typeof params.duration === 'number') {
-        targetDuration = params.duration;
-      } else if (typeof params.duration === 'string') {
-        // For handling "28 days" type strings directly
-        targetDuration = parseValidity(params.duration);
-      }
-
-      console.log('Processed target duration from params:', targetDuration);
-    }
-
-    // Fix budget extraction
-    let budget = null;
-    // Try to extract budget from parameters
-    if (params.budget) {
-      if (typeof params.budget === 'number') {
-        budget = params.budget;
-      } else if (typeof params.budget === 'object' && params.budget.amount) {
-        budget = params.budget.amount;
-      } else if (typeof params.budget === 'string') {
-        // Try to extract a number from the string
-        const budgetMatch = params.budget.match(/(\d+)/);
-        if (budgetMatch) budget = parseInt(budgetMatch[1]);
-      }
-    }
-
-    // If budget not found in parameters, try to extract from query text
-    if (!budget) {
-      const budgetMatch = queryText.match(/under\s+(?:rs\.?|₹)?\s*(\d+)/i) || 
-                          queryText.match(/less\s+than\s+(?:rs\.?|₹)?\s*(\d+)/i) ||
-                          queryText.match(/budget\s+of\s+(?:rs\.?|₹)?\s*(\d+)/i);
-      if (budgetMatch) {
-        budget = parseInt(budgetMatch[1]);
-      }
-    }
-
+    // Extract budget
+    const budget = processBudgetParameter(params, queryText);
     console.log('Extracted budget:', budget);
 
-    // Get and process data
-    const data = await getPlansData();
-    let plans = [];
-
-    if (operator) {
-      const provider = data.telecom_providers[operator];
-      if (provider?.plans?.[planType]) {
-        // For postpaid plans which might have a different structure
-        if (planType === 'postpaid') {
-          const postpaidPlans = provider.plans.postpaid;
-          if (Array.isArray(postpaidPlans)) {
-            plans = postpaidPlans.map(p => ({ ...p, provider: operator }));
-          } else if (typeof postpaidPlans === 'object' && postpaidPlans !== null) {
-            // Handle nested postpaid structure if needed
-            plans = flattenPostpaidPlans(postpaidPlans).map(p => ({ ...p, provider: operator }));
-          }
-        } else {
-          // For prepaid plans, use existing flattening function
-          plans = flattenPrepaidPlans(provider.plans[planType]).map(p => ({ ...p, provider: operator }));
-        }
-      }
-      console.log(`Found ${plans.length} ${planType} plans for ${operator}`);
-    } else {
-      // Search all providers if no operator specified
-      for (const op of Object.keys(data.telecom_providers)) {
-        const provider = data.telecom_providers[op];
-        if (provider?.plans?.[planType]) {
-          let operatorPlans = [];
-          if (planType === 'postpaid') {
-            const postpaidPlans = provider.plans.postpaid;
-            if (Array.isArray(postpaidPlans)) {
-              operatorPlans = postpaidPlans;
-            } else if (typeof postpaidPlans === 'object' && postpaidPlans !== null) {
-              // Handle nested postpaid structure if needed
-              operatorPlans = flattenPostpaidPlans(postpaidPlans);
-            }
-          } else {
-            operatorPlans = flattenPrepaidPlans(provider.plans[planType]);
-          }
-          plans.push(...operatorPlans.map(p => ({ ...p, provider: op })));
-        }
-      }
-      console.log(`Found ${plans.length} total ${planType} plans across all operators`);
-    }
+    // Get plans data
+    let plans = await getPlansForOperator(operator, planType);
 
     // Log some sample plans for debugging
     if (plans.length > 0) {
@@ -472,22 +149,7 @@ app.post('/webhook', async (req, res) => {
 
     // Filter plans by voice-only if requested
     if (isVoiceOnly) {
-      const voicePlans = plans.filter(plan => {
-        // Only include plans with zero data
-        const hasZeroData = plan.data === "0GB" || 
-                           plan.data === "No data" ||
-                           plan.data?.toLowerCase().includes('0gb');
-
-        // Check if benefits only mention voice/calls and SMS
-        const onlyVoiceAndSMS = plan.benefits && 
-                               !plan.benefits.toLowerCase().includes('data') &&
-                               !plan.benefits.toLowerCase().includes('gb') &&
-                               (plan.benefits.toLowerCase().includes('voice') ||
-                                plan.benefits.toLowerCase().includes('calls'));
-
-        return hasZeroData && onlyVoiceAndSMS;
-      });
-
+      const voicePlans = filterVoiceOnlyPlans(plans);
       console.log(`Found ${voicePlans.length} voice-only plans`);
 
       // Replace the plans array with filtered voice-only plans
@@ -502,72 +164,17 @@ app.post('/webhook', async (req, res) => {
 
     // Filter plans by minimum daily data if requested
     if (minDailyData) {
-      plans = plans.filter(plan => {
-        const dataAmount = parseDataAllowance(plan.data);
-        if (!dataAmount) return false; // Exclude plans with no data or unparseable data
-
-        // Get validity in days
-        const validityDays = parseValidity(plan.validity) || 1;
-
-        // Calculate daily data (total data divided by validity)
-        const dailyData = dataAmount / validityDays;
-
-        return dailyData >= minDailyData;
-      });
-
+      plans = filterByDailyData(plans, minDailyData);
       console.log(`After daily data filtering, ${plans.length} plans remain`);
     }
 
-
-
-    // Filter plans
-    const filtered = plans.filter(plan => {
-      const validDays = parseValidity(plan.validity);
-      const planPrice = typeof plan.price === 'string' ? parseInt(plan.price.replace(/[^0-9]/g, '')) : plan.price;
-
-      console.log(`Plan: ₹${planPrice}, Validity: ${plan.validity}, Parsed days: ${validDays}`);
-
-      // Debug any filtering issues
-      if (targetDuration) {
-        console.log(`Comparing target ${targetDuration} with plan validity ${validDays}`);
-      }
-
-      if (budget) {
-        console.log(`Comparing budget ${budget} with plan price ${planPrice}`);
-      }
-
-      // Check if the plan duration matches the requested duration
-      let matchesDuration = !targetDuration || validDays === targetDuration;
-
-      // Check if the plan price is within budget
-      const matchesBudget = !budget || planPrice <= budget;
-
-      // Log detailed info about why a plan might be filtered out
-      if (targetDuration && !matchesDuration) {
-        console.log(`Plan filtered out: duration mismatch (requested ${targetDuration}, plan has ${validDays})`);
-      }
-      if (budget && !matchesBudget) {
-        console.log(`Plan filtered out: budget mismatch (max ₹${budget}, plan costs ₹${planPrice})`);
-      }
-
-      return matchesDuration && matchesBudget;
-    });
-
+    // Filter plans by constraints
+    let filtered = filterPlansByConstraints(plans, targetDuration, budget);
     console.log(`Filtered to ${filtered.length} matching plans`);
 
-    // Helper function to check if a plan has a specific feature
-    function hasFeature(plan, feature) {
-      if (!plan || !feature) return false;
-      const searchText = [plan.benefits, plan.additional_benefits, plan.description]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return searchText.includes(feature.toLowerCase());
-    }
-
     // Initialize arrays for feature tracking
-    const availableFeatures = [];
-    const unavailableFeatures = [];
+    let availableFeatures = [];
+    let unavailableFeatures = [];
 
     // Add international roaming to requested features if query contains it
     if (queryText.includes('international') && queryText.includes('roaming')) {
@@ -576,22 +183,16 @@ app.post('/webhook', async (req, res) => {
 
     // Filter plans based on requested features
     if (requestedFeatures.length > 0) {
-      const plansWithFeatures = filtered.filter(plan => 
-        requestedFeatures.every(feature => hasFeature(plan, feature))
-      );
+      const plansWithFeatures = filterPlansByFeatures(filtered, requestedFeatures);
 
       // Check which features are available/unavailable
-      requestedFeatures.forEach(feature => {
-        if (filtered.some(plan => hasFeature(plan, feature))) {
-          availableFeatures.push(feature);
-        } else {
-          unavailableFeatures.push(feature);
-        }
-      });
+      const featureCheck = checkFeatureAvailability(filtered, requestedFeatures);
+      availableFeatures = featureCheck.availableFeatures;
+      unavailableFeatures = featureCheck.unavailableFeatures;
 
       if (plansWithFeatures.length === 0) {
         // If no plans have all requested features, return early with a message
-        responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()} plans found with ${requestedFeatures.join(' and ')}.`;
+        const responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()} plans found with ${requestedFeatures.join(' and ')}.`;
         console.log('Response:', responseText);
         return res.json({ fulfillmentText: responseText });
       }
@@ -601,29 +202,20 @@ app.post('/webhook', async (req, res) => {
     }
 
     // Special handling for international roaming query
-    const isInternationalQuery = queryText.toLowerCase().includes('international');
+    const isInternationalQuery = queryText.toLowerCase().includes('international') || queryText.toLowerCase().includes('roaming');
     if (isInternationalQuery) {
-      const internationalPlans = filtered.filter(plan => {
-        const planText = [plan.benefits, plan.additional_benefits, plan.description]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        return planText.includes('international roaming') || 
-               planText.includes('iro') || 
-               planText.includes('international call') ||
-               planText.includes('global roaming');
-      });
+      const internationalPlans = filterInternationalPlans(filtered);
 
-      if (internationalPlans.length === 0) {
-        responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}international roaming plans found. Please check the operator's website or customer care for international roaming activation and rates.`;
+      filtered = internationalPlans;
+
+      if (filtered.length === 0) {
+        const responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}international roaming plans found. Please check the operator's website or customer care for international roaming activation and rates.`;
         return res.json({ fulfillmentText: responseText });
       }
-      filtered = internationalPlans;
     }
 
     // Limit number of plans to prevent response from being too long
-    const MAX_PLANS_TO_SHOW = CONFIG.MAX_PLANS_TO_SHOW;
-    const plansToShow = filtered.slice(0, MAX_PLANS_TO_SHOW);
+    const plansToShow = filtered.slice(0, CONFIG.MAX_PLANS_TO_SHOW);
 
     let responseText = '';
 
@@ -668,22 +260,14 @@ app.post('/webhook', async (req, res) => {
         }).join('\n');
 
       // Add note if results were limited
-      if (filtered.length > MAX_PLANS_TO_SHOW) {
-        responseText += `\n\n(Showing ${MAX_PLANS_TO_SHOW} out of ${filtered.length} available plans)`;
+      if (filtered.length > CONFIG.MAX_PLANS_TO_SHOW) {
+        responseText += `\n\n(Showing ${CONFIG.MAX_PLANS_TO_SHOW} out of ${filtered.length} available plans)`;
       }
     } else {
       // Add a fallback that shows plans with similar validity if nothing matches exactly
       if (targetDuration && plans.length > 0) {
         // Try to find plans with similar validity that also meet budget constraints
-        const similarPlans = plans
-          .map(plan => ({
-            plan,
-            validDays: parseValidity(plan.validity)
-          }))
-          .filter(item => item.validDays) // Only include plans with valid durations
-          .filter(item => !budget || item.plan.price <= budget) // Apply budget filter if specified
-          .sort((a, b) => Math.abs(a.validDays - targetDuration) - Math.abs(b.validDays - targetDuration))
-          .slice(0, 3); // Get top 3 closest matches
+        const similarPlans = findSimilarPlans(plans, targetDuration, budget);
 
         if (similarPlans.length > 0) {
           const budgetText = budget ? ` under ₹${budget}` : '';
@@ -691,8 +275,7 @@ app.post('/webhook', async (req, res) => {
           const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
 
           responseText += `No exact ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans with ${targetDuration} days validity${budgetText} found. Here are some alternatives:\n\n` +
-            similarPlans.map(item => {
-              const plan = item.plan;
+            similarPlans.map(plan => {
               // Handle different validity formats and undefined values
               let validity = '';
               if (plan.validity) {
