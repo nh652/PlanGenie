@@ -2,17 +2,70 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import fetch from 'node-fetch';
 
+// Add this right after your imports and before any other code
+const CONFIG = {
+  // Server settings
+  PORT: process.env.PORT || 3000,
+  
+  // External API
+  JSON_URL: 'https://raw.githubusercontent.com/nh652/TelcoPlans/main/telecom_plans_improved.json',
+  
+  // Cache settings
+  CACHE_DURATION: 3600000, // 1 hour
+  
+  // Response limits
+  MAX_PLANS_TO_SHOW: 8,
+  
+  // Available operators
+  AVAILABLE_OPERATORS: ['jio', 'airtel', 'vi'],
+  
+  // Operator name corrections
+  OPERATOR_CORRECTIONS: {
+    'geo': 'jio',
+    'artel': 'airtel',
+    'vodafone idea': 'vi',
+    'vodaphone': 'vi',
+    'idea': 'vi'
+  },
+  
+  // Duration mappings for month expressions
+  MONTH_MAPPINGS: {
+    '1 month': 28,
+    'one month': 28,
+    'a month': 28,
+    '2 month': 56,
+    'two month': 56,
+    '2 months': 56,
+    'two months': 56,
+    '3 month': 84,
+    'three month': 84,
+    '3 months': 84,
+    'three months': 84
+  },
+  
+  // Conversational responses
+  CONVERSATIONAL_RESPONSES: {
+    'hi': ['Hello! How can I help you today?', 'Hi there! Looking for a mobile plan?', 'Hello! Need help finding a plan?'],
+    'hello': ['Hi! How can I assist you?', 'Hello there! Need help with mobile plans?', 'Hello! Ready to find your perfect plan?'],
+    'hey': ['Hey! How can I help?', 'Hi there! Looking for a mobile plan?', 'Hey! Ready to find your perfect plan?'],
+    'how are you': ['I\'m doing great, thanks for asking! How can I help you today?', 'I\'m well, thanks! Ready to find you the perfect mobile plan?'],
+    'thanks': ['You\'re welcome! Let me know if you need anything else.', 'Happy to help! Need anything else?', 'Glad I could help! Feel free to ask about any other plans.'],
+    'thank you': ['You\'re welcome! Let me know if you need anything else.', 'Happy to help! Need anything else?', 'My pleasure! Feel free to ask about other plans.'],
+    'bye': ['Goodbye! Have a great day!', 'Take care! Come back if you need more help.', 'Bye! Feel free to return if you need assistance.']
+  }
+};
+
 const app = express();
 app.use(bodyParser.json());
-const port = process.env.PORT || 3000;
+const port = CONFIG.PORT;
 
 // Your GitHub JSON URL
-const JSON_URL = 'https://raw.githubusercontent.com/nh652/TelcoPlans/main/telecom_plans_improved.json';
+const JSON_URL = CONFIG.JSON_URL;
 
 // Cache configuration
 let cachedPlans = null;
 let lastFetchTime = 0;
-const CACHE_DURATION = 3600000; // 1 hour
+const CACHE_DURATION = CONFIG.CACHE_DURATION;
 
 // Root endpoint for Replit preview
 app.get('/', (req, res) => {
@@ -20,13 +73,7 @@ app.get('/', (req, res) => {
 });
 
 // Operator name correction mapping
-const OPERATOR_CORRECTIONS = {
-  'geo': 'jio',
-  'artel': 'airtel',
-  'vodafone idea': 'vi',
-  'vodaphone': 'vi',
-  'idea': 'vi'
-};
+const OPERATOR_CORRECTIONS = CONFIG.OPERATOR_CORRECTIONS;
 
 // Common misspellings and their corrections
 function correctOperatorName(input) {
@@ -48,7 +95,7 @@ function correctOperatorName(input) {
 }
 
 // Available operators in our database
-const AVAILABLE_OPERATORS = ['jio', 'airtel', 'vi'];
+const AVAILABLE_OPERATORS = CONFIG.AVAILABLE_OPERATORS;
 
 // Fetch and cache plans from GitHub, with User-Agent header
 async function getPlansData() {
@@ -192,15 +239,7 @@ app.post('/webhook', async (req, res) => {
     console.log('Query text:', queryText);
 
     // Handle conversational queries first
-    const conversationalResponses = {
-      'hi': ['Hello! How can I help you today?', 'Hi there! Looking for a mobile plan?', 'Hello! Need help finding a plan?'],
-      'hello': ['Hi! How can I assist you?', 'Hello there! Need help with mobile plans?', 'Hello! Ready to find your perfect plan?'],
-      'hey': ['Hey! How can I help?', 'Hi there! Looking for a mobile plan?', 'Hey! Ready to find your perfect plan?'],
-      'how are you': ['I\'m doing great, thanks for asking! How can I help you today?', 'I\'m well, thanks! Ready to find you the perfect mobile plan?'],
-      'thanks': ['You\'re welcome! Let me know if you need anything else.', 'Happy to help! Need anything else?', 'Glad I could help! Feel free to ask about any other plans.'],
-      'thank you': ['You\'re welcome! Let me know if you need anything else.', 'Happy to help! Need anything else?', 'My pleasure! Feel free to ask about other plans.'],
-      'bye': ['Goodbye! Have a great day!', 'Take care! Come back if you need more help.', 'Bye! Feel free to return if you need assistance.']
-    };
+    const conversationalResponses = CONFIG.CONVERSATIONAL_RESPONSES;
 
     // Check for conversational queries
     const normalizedQuery = queryText.toLowerCase().trim();
@@ -231,19 +270,7 @@ app.post('/webhook', async (req, res) => {
     let targetDuration = null;
 
     // First check for month expressions
-    const monthMap = {
-      '1 month': 28,
-      'one month': 28,
-      'a month': 28, 
-      '2 month': 56,
-      'two month': 56,
-      '2 months': 56,
-      'two months': 56,
-      '3 month': 84,
-      'three month': 84,
-      '3 months': 84,
-      'three months': 84
-    };
+    const monthMap = CONFIG.MONTH_MAPPINGS;
 
     // Check for month-based expressions first
     for (const [monthExpr, days] of Object.entries(monthMap)) {
@@ -595,7 +622,7 @@ app.post('/webhook', async (req, res) => {
     }
 
     // Limit number of plans to prevent response from being too long
-    const MAX_PLANS_TO_SHOW = 8;
+    const MAX_PLANS_TO_SHOW = CONFIG.MAX_PLANS_TO_SHOW;
     const plansToShow = filtered.slice(0, MAX_PLANS_TO_SHOW);
 
     let responseText = '';
