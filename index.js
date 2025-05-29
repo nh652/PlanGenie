@@ -11,43 +11,14 @@ const CONFIG = {
   // External API
   JSON_URL: 'https://raw.githubusercontent.com/nh652/TelcoPlans/main/telecom_plans_improved.json',
 
-// Rate limiting
-const requestCounts = new Map();
-const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 30;
-
-function rateLimitMiddleware(req, res, next) {
-  const clientId = req.ip || 'unknown';
-  const now = Date.now();
-  
-  if (!requestCounts.has(clientId)) {
-    requestCounts.set(clientId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return next();
-  }
-  
-  const clientData = requestCounts.get(clientId);
-  
-  if (now > clientData.resetTime) {
-    requestCounts.set(clientId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return next();
-  }
-  
-  if (clientData.count >= MAX_REQUESTS_PER_WINDOW) {
-    return res.status(429).json({
-      fulfillmentText: 'Too many requests. Please wait a moment before trying again.'
-    });
-  }
-  
-  clientData.count++;
-  next();
-}
-
-app.use('/webhook', rateLimitMiddleware);
-
 
   
   // Cache settings
-  CACHE_DURATION: 3600000, // 1 hour
+  CACHE_DURATION: 3600000, // 1 hour,
+  
+  // Rate limiting settings
+  RATE_LIMIT_WINDOW: 60000, // 1 minute
+  MAX_REQUESTS_PER_WINDOW: 30
   
   // Response limits
   MAX_PLANS_TO_SHOW: 8,
@@ -124,6 +95,37 @@ app.get('/health', async (req, res) => {
 const app = express();
 app.use(bodyParser.json());
 const port = CONFIG.PORT;
+
+// Rate limiting
+const requestCounts = new Map();
+
+function rateLimitMiddleware(req, res, next) {
+  const clientId = req.ip || 'unknown';
+  const now = Date.now();
+  
+  if (!requestCounts.has(clientId)) {
+    requestCounts.set(clientId, { count: 1, resetTime: now + CONFIG.RATE_LIMIT_WINDOW });
+    return next();
+  }
+  
+  const clientData = requestCounts.get(clientId);
+  
+  if (now > clientData.resetTime) {
+    requestCounts.set(clientId, { count: 1, resetTime: now + CONFIG.RATE_LIMIT_WINDOW });
+    return next();
+  }
+  
+  if (clientData.count >= CONFIG.MAX_REQUESTS_PER_WINDOW) {
+    return res.status(429).json({
+      fulfillmentText: 'Too many requests. Please wait a moment before trying again.'
+    });
+  }
+  
+  clientData.count++;
+  next();
+}
+
+app.use('/webhook', rateLimitMiddleware);
 
 // Your GitHub JSON URL
 const JSON_URL = CONFIG.JSON_URL;
