@@ -1,47 +1,64 @@
 
-import { accessLogger, logPerformance, logError } from '../utils/logger.js';
+import morgan from 'morgan';
 import { v4 as uuidv4 } from 'uuid';
+import logger, { logInfo, logError, logWarn, logPerformance } from '../utils/logger.js';
+
+// Access logger using winston
+const accessLogger = logger.child({ component: 'access' });
 
 // Request ID middleware
-export function requestIdMiddleware(req, res, next) {
+export function requestId(req, res, next) {
   req.requestId = uuidv4();
   res.setHeader('X-Request-ID', req.requestId);
   next();
 }
 
-// Request logging middleware
+// Morgan configuration for structured logging
+export const morganMiddleware = morgan(
+  ':method :url :status :res[content-length] - :response-time ms',
+  {
+    stream: {
+      write: (message) => {
+        accessLogger.info(message.trim());
+      }
+    },
+    skip: (req) => {
+      // Skip logging for health checks in production
+      return process.env.NODE_ENV === 'production' && req.path === '/health';
+    }
+  }
+);
+
+// Detailed request/response logging middleware
 export function requestLogger(req, res, next) {
-  const startTime = process.hrtime.bigint();
+  const startTime = Date.now();
   
   // Log incoming request
-  accessLogger.info({
-    message: 'Incoming request',
+  logInfo('Incoming request', {
     requestId: req.requestId,
     method: req.method,
     url: req.originalUrl,
     userAgent: req.get('User-Agent'),
     ip: req.ip,
     contentLength: req.get('Content-Length'),
+    contentType: req.get('Content-Type'),
     timestamp: new Date().toISOString()
   });
 
-  // Log request body for webhook endpoint (excluding sensitive data)
-  if (req.path === '/webhook' && req.body) {
+  // Log request body for debugging (only for webhook endpoint and not in production)
+  if (req.path === '/webhook' && process.env.NODE_ENV !== 'production') {
     accessLogger.debug({
       message: 'Request body',
       requestId: req.requestId,
-      queryText: req.body.queryResult?.queryText,
-      parameters: req.body.queryResult?.parameters,
-      intent: req.body.queryResult?.intent?.displayName
+      body: req.body
     });
   }
 
-  // Override res.json to log response
-  const originalJson = res.json;
+  // Override res.json to log responses
+  const originalJson = res.json.bind(res);
   res.json = function(body) {
-    const endTime = process.hrtime.bigint();
-    const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
-
+    const duration = Date.now() - startTime;
+    
     // Log response
     accessLogger.info({
       message: 'Outgoing response',
@@ -91,24 +108,4 @@ export function errorLogger(err, req, res, next) {
   });
   
   next(err);
-}
-
-// Performance monitoring middleware
-export function performanceMonitor(req, res, next) {
-  const startTime = process.hrtime.bigint();
-  
-  res.on('finish', () => {
-    const endTime = process.hrtime.bigint();
-    const duration = Number(endTime - startTime) / 1000000;
-    
-    // Log performance metrics
-    logPerformance(`${req.method} ${req.route?.path || req.path}`, duration, {
-      requestId: req.requestId,
-      statusCode: res.statusCode,
-      route: req.route?.path,
-      endpoint: req.path
-    });
-  });
-  
-  next();
 }

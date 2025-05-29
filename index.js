@@ -119,7 +119,7 @@ app.post('/webhook',
       parameters: req.body.queryResult?.parameters,
       intent: req.body.queryResult?.intent?.displayName
     });
-  
+
     const { queryResult } = req.body;
     const params = queryResult.parameters || {};
     const queryText = (queryResult.queryText || '').toLowerCase();
@@ -421,7 +421,7 @@ app.post('/webhook',
       finalPlanCount: filtered.length,
       alternativePlansCount: responseParams.alternativePlans?.length || 0
     });
-    
+
     res.json({ fulfillmentText: responseText });
 }));
 
@@ -449,7 +449,7 @@ app.get('/health/ready', asyncHandler(async (req, res) => {
 app.get('/metrics', (req, res) => {
   const memory = healthService.getMemoryUsage();
   const cpu = healthService.getCPUUsage();
-  
+
   res.json({
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -472,7 +472,7 @@ app.use('*', (req, res) => {
     ip: req.ip,
     userAgent: req.get('User-Agent')
   });
-  
+
   res.status(404).json({
     fulfillmentText: 'Endpoint not found',
     error: {

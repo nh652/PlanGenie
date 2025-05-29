@@ -1,8 +1,8 @@
-
 import fetch from 'node-fetch';
 import { CONFIG } from '../config/constants.js';
-import { parseValidity, parseDataAllowance, hasFeature } from '../utils/textParser.js';
-import { ExternalAPIError, PlanNotFoundError } from '../utils/errors.js';
+import { parseValidity, parseDataAllowance, correctOperatorName } from '../utils/textParser.js';
+import { PlanNotFoundError, ValidationError, ExternalAPIError } from '../utils/errors.js';
+import { logInfo, logError, logDebug, logWarn } from '../utils/logger.js';
 
 // Cache configuration
 let cachedPlans = null;
@@ -40,7 +40,7 @@ async function fetchWithRetry(url, options, retryCount = 0) {
 
     return response;
   } catch (error) {
-    console.error(`Fetch attempt ${retryCount + 1} failed:`, error.message);
+    logError(`Fetch attempt ${retryCount + 1} failed: ${error.message}`, { attempt: retryCount + 1, error: error.message });
 
     // Don't retry on certain errors
     if (error.name === 'AbortError') {
@@ -57,10 +57,10 @@ async function fetchWithRetry(url, options, retryCount = 0) {
         RETRY_CONFIG.baseDelay * Math.pow(RETRY_CONFIG.backoffFactor, retryCount),
         RETRY_CONFIG.maxDelay
       );
-      
-      console.log(`Retrying in ${delay}ms... (attempt ${retryCount + 2}/${RETRY_CONFIG.maxRetries + 1})`);
+
+      logWarn(`Retrying in ${delay}ms... (attempt ${retryCount + 2}/${RETRY_CONFIG.maxRetries + 1})`, { delay, attempt: retryCount + 2, maxAttempts: RETRY_CONFIG.maxRetries + 1 });
       await sleep(delay);
-      
+
       return fetchWithRetry(url, options, retryCount + 1);
     }
 
@@ -74,7 +74,7 @@ export async function getPlansData() {
   const now = Date.now();
   if (!cachedPlans || now - lastFetchTime > CONFIG.CACHE_DURATION) {
     try {
-      console.log('Fetching fresh plans data...');
+      logInfo('Fetching fresh plans data...');
       const response = await fetchWithRetry(CONFIG.JSON_URL, {
         headers: {
           'User-Agent': 'TelecomPlanBot/1.0',
@@ -84,7 +84,7 @@ export async function getPlansData() {
       });
 
       const data = await response.json();
-      
+
       // Validate the response structure
       if (!data || !data.telecom_providers) {
         throw new ExternalAPIError('Invalid plans data structure received');
@@ -92,16 +92,16 @@ export async function getPlansData() {
 
       cachedPlans = data;
       lastFetchTime = now;
-      console.log('Plans data fetched and cached successfully');
+      logInfo('Plans data fetched and cached successfully');
     } catch (error) {
-      console.error('Failed to fetch plans:', error);
-      
+      logError('Failed to fetch plans:', { error: error.message });
+
       // If we have cached data and it's not too old (within 24 hours), use it
       if (cachedPlans && now - lastFetchTime < 24 * 60 * 60 * 1000) {
-        console.log('Using stale cached data due to fetch failure');
+        logWarn('Using stale cached data due to fetch failure');
         return cachedPlans;
       }
-      
+
       throw error;
     }
   }
@@ -182,7 +182,7 @@ export async function getPlansForOperator(operator, planType) {
         // For prepaid plans, use existing flattening function
         plans = flattenPrepaidPlans(provider.plans[planType]).map(p => ({ ...p, provider: operator }));
       }
-      console.log(`Found ${plans.length} ${planType} plans for ${operator}`);
+      logInfo(`Found ${plans.length} ${planType} plans for ${operator}`, { operator, planType, count: plans.length });
     } else {
       // Search all providers if no operator specified
       for (const op of Object.keys(data.telecom_providers)) {
@@ -203,7 +203,7 @@ export async function getPlansForOperator(operator, planType) {
           plans.push(...operatorPlans.map(p => ({ ...p, provider: op })));
         }
       }
-      console.log(`Found ${plans.length} total ${planType} plans across all operators`);
+      logInfo(`Found ${plans.length} total ${planType} plans across all operators`, { planType, count: plans.length });
     }
 
     // Validate that we have valid plan data
@@ -214,13 +214,13 @@ export async function getPlansForOperator(operator, planType) {
     // Validate plan structure
     plans.forEach((plan, index) => {
       if (!plan.price || !plan.data) {
-        console.warn(`Plan at index ${index} has missing required fields:`, plan);
+        logWarn(`Plan at index ${index} has missing required fields:`, { index, plan });
       }
     });
 
     return plans;
   } catch (error) {
-    console.error('Error in getPlansForOperator:', error);
+    logError('Error in getPlansForOperator:', { error: error.message });
     throw error;
   }
 }
@@ -266,15 +266,15 @@ export function filterPlansByConstraints(plans, targetDuration, budget) {
     const validDays = parseValidity(plan.validity);
     const planPrice = typeof plan.price === 'string' ? parseInt(plan.price.replace(/[^0-9]/g, '')) : plan.price;
 
-    console.log(`Plan: ₹${planPrice}, Validity: ${plan.validity}, Parsed days: ${validDays}`);
+    logDebug(`Plan: ₹${planPrice}, Validity: ${plan.validity}, Parsed days: ${validDays}`, { price: planPrice, validity: plan.validity, parsedDays: validDays });
 
     // Debug any filtering issues
     if (targetDuration) {
-      console.log(`Comparing target ${targetDuration} with plan validity ${validDays}`);
+      logDebug(`Comparing target ${targetDuration} with plan validity ${validDays}`, { targetDuration, planValidity: validDays });
     }
 
     if (budget) {
-      console.log(`Comparing budget ${budget} with plan price ${planPrice}`);
+      logDebug(`Comparing budget ${budget} with plan price ${planPrice}`, { budget, planPrice });
     }
 
     // Check if the plan duration matches the requested duration
@@ -285,10 +285,10 @@ export function filterPlansByConstraints(plans, targetDuration, budget) {
 
     // Log detailed info about why a plan might be filtered out
     if (targetDuration && !matchesDuration) {
-      console.log(`Plan filtered out: duration mismatch (requested ${targetDuration}, plan has ${validDays})`);
+      logDebug(`Plan filtered out: duration mismatch (requested ${targetDuration}, plan has ${validDays})`, { targetDuration, planValidity: validDays });
     }
     if (budget && !matchesBudget) {
-      console.log(`Plan filtered out: budget mismatch (max ₹${budget}, plan costs ₹${planPrice})`);
+      logDebug(`Plan filtered out: budget mismatch (max ₹${budget}, plan costs ₹${planPrice})`, { budget, planPrice });
     }
 
     return matchesDuration && matchesBudget;
