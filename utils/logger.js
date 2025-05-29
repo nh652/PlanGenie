@@ -1,4 +1,3 @@
-
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
@@ -26,9 +25,10 @@ const consoleFormat = winston.format.combine(
   winston.format.timestamp({
     format: 'HH:mm:ss'
   }),
-  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+  winston.format.printf(({ timestamp, level, message, requestId, ...meta }) => {
     const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-    return `${timestamp} [${level}]: ${message} ${metaStr}`;
+    const reqId = requestId ? ` [${requestId}]` : '';
+    return `${timestamp} [${level}]:${reqId} ${message} ${metaStr}`;
   })
 );
 
@@ -87,7 +87,9 @@ const logger = winston.createLogger({
       filename: path.join(logsDir, 'rejections.log'),
       format: logFormat
     })
-  ]
+  ],
+  // Don't exit on handled exceptions
+  exitOnError: false
 });
 
 // Add console transport for development
@@ -118,13 +120,20 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
+// Create a stream object for morgan
+logger.stream = {
+  write: (message) => {
+    logger.info(message.trim());
+  }
+};
+
 // Helper functions for structured logging
 export const logError = (message, error = null, meta = {}) => {
   const logData = {
     message,
     ...meta
   };
-  
+
   if (error) {
     logData.error = {
       name: error.name,
@@ -133,7 +142,7 @@ export const logError = (message, error = null, meta = {}) => {
       code: error.code
     };
   }
-  
+
   logger.error(logData);
 };
 
@@ -159,116 +168,5 @@ export const logPerformance = (operation, duration, meta = {}) => {
     ...meta
   });
 };
-
-export default logger;
-import winston from 'winston';
-import path from 'path';
-
-// Custom log format
-const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.json(),
-  winston.format.printf(({ timestamp, level, message, requestId, ...meta }) => {
-    const logEntry = {
-      timestamp,
-      level,
-      message,
-      requestId,
-      ...meta
-    };
-    return JSON.stringify(logEntry);
-  })
-);
-
-// Create logs directory if it doesn't exist
-const logDir = 'logs';
-
-// Logger configuration
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: logFormat,
-  defaultMeta: { service: 'telecom-api' },
-  transports: [
-    // Write all logs with level 'error' and below to 'error.log'
-    new winston.transports.File({
-      filename: path.join(logDir, 'error.log'),
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true
-    }),
-    
-    // Write all logs to 'combined.log'
-    new winston.transports.File({
-      filename: path.join(logDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true
-    }),
-    
-    // Console transport for development
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple(),
-        winston.format.printf(({ timestamp, level, message, requestId, ...meta }) => {
-          const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
-          const reqId = requestId ? ` [${requestId}]` : '';
-          return `${timestamp} ${level}:${reqId} ${message}${metaStr}`;
-        })
-      )
-    })
-  ],
-  
-  // Don't exit on handled exceptions
-  exitOnError: false
-});
-
-// Handle uncaught exceptions and unhandled rejections
-logger.exceptions.handle(
-  new winston.transports.File({ filename: path.join(logDir, 'exceptions.log') })
-);
-
-logger.rejections.handle(
-  new winston.transports.File({ filename: path.join(logDir, 'rejections.log') })
-);
-
-// Create a stream object for morgan
-logger.stream = {
-  write: (message) => {
-    logger.info(message.trim());
-  }
-};
-
-// Convenience methods
-export function logInfo(message, meta = {}) {
-  logger.info(message, meta);
-}
-
-export function logError(message, error = null, meta = {}) {
-  const errorMeta = error ? {
-    error: {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    },
-    ...meta
-  } : meta;
-  
-  logger.error(message, errorMeta);
-}
-
-export function logWarn(message, meta = {}) {
-  logger.warn(message, meta);
-}
-
-export function logDebug(message, meta = {}) {
-  logger.debug(message, meta);
-}
-
-export function logPerformance(message, duration, meta = {}) {
-  logger.info(message, { duration, ...meta, type: 'performance' });
-}
 
 export default logger;
