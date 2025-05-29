@@ -1,9 +1,18 @@
 
 import { TelecomAPIError } from '../utils/errors.js';
+import { logError, logWarn } from '../utils/logger.js';
+import { healthService } from '../services/healthService.js';
 
 // Rate limit error handler
 export function handleRateLimitError(req, res, next) {
-  // This will be called when rate limit is exceeded
+  logWarn('Rate limit exceeded', {
+    requestId: req.requestId,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    url: req.originalUrl,
+    retryAfter: req.rateLimit?.resetTime
+  });
+
   res.status(429).json({
     fulfillmentText: 'Too many requests. Please try again later.',
     error: {
@@ -16,13 +25,16 @@ export function handleRateLimitError(req, res, next) {
 
 // Global error handling middleware
 export function errorHandler(err, req, res, next) {
-  console.error('Error occurred:', {
-    name: err.name,
-    message: err.message,
-    stack: err.stack,
+  // Increment error counter for health metrics
+  healthService.incrementErrorCount();
+
+  logError('Request error occurred', err, {
+    requestId: req.requestId,
     url: req.url,
     method: req.method,
-    body: req.body
+    userAgent: req.get('User-Agent'),
+    ip: req.ip,
+    body: req.path === '/webhook' ? req.body : 'redacted'
   });
 
   // Handle known custom errors
