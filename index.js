@@ -113,11 +113,14 @@ app.post('/webhook',
     // Increment request counter for health metrics
     healthService.incrementRequestCount();
 
+    const startTime = Date.now();
     logInfo('Received webhook request', {
       requestId: req.requestId,
       queryText: req.body.queryResult?.queryText,
       parameters: req.body.queryResult?.parameters,
-      intent: req.body.queryResult?.intent?.displayName
+      intent: req.body.queryResult?.intent?.displayName,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip
     });
 
     const { queryResult } = req.body;
@@ -415,11 +418,13 @@ app.post('/webhook',
     // Generate response using ResponseGenerator
     const responseText = responseGenerator.generateResponse(responseParams);
 
+    const responseTime = Date.now() - startTime;
     logInfo('Webhook response generated', {
       requestId: req.requestId,
       responseLength: responseText.length,
       finalPlanCount: filtered.length,
-      alternativePlansCount: responseParams.alternativePlans?.length || 0
+      alternativePlansCount: responseParams.alternativePlans?.length || 0,
+      responseTime: `${responseTime}ms`
     });
 
     res.json({ fulfillmentText: responseText });

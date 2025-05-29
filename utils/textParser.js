@@ -1,7 +1,19 @@
 
 import { CONFIG } from '../config/constants.js';
 
-// Common misspellings and their corrections
+/**
+ * @fileoverview Text parsing utilities for telecom plan queries
+ * @module utils/textParser
+ */
+
+/**
+ * Corrects common misspellings and variations of operator names
+ * @param {string|null} input - The operator name to correct
+ * @returns {string|null} The corrected operator name or null if not found
+ * @example
+ * correctOperatorName('geo') // returns 'jio'
+ * correctOperatorName('artel') // returns 'airtel'
+ */
 export function correctOperatorName(input) {
   if (!input) return null;
 
@@ -20,7 +32,15 @@ export function correctOperatorName(input) {
   return null;
 }
 
-// Convert validity to days (handles numbers and strings)
+/**
+ * Converts plan validity to number of days
+ * @param {string|number|null} validity - The validity period to parse
+ * @returns {number|null} Number of days or null if unparseable
+ * @example
+ * parseValidity(28) // returns 28
+ * parseValidity("1 month") // returns 30
+ * parseValidity("2 weeks") // returns 14
+ */
 export function parseValidity(validity) {
   if (typeof validity === 'number') return validity;
   if (!validity) return null;
@@ -54,7 +74,15 @@ export function parseValidity(validity) {
   return match ? parseInt(match[1]) : null;
 }
 
-// Parse data allowance from plan description
+/**
+ * Parses data allowance from plan description string
+ * @param {string|null} dataString - The data allowance string to parse
+ * @returns {number|null} Data amount in GB or null if unparseable
+ * @example
+ * parseDataAllowance("2GB") // returns 2
+ * parseDataAllowance("1024MB") // returns 1
+ * parseDataAllowance("unlimited") // returns Infinity
+ */
 export function parseDataAllowance(dataString) {
   if (!dataString) return null;
 
@@ -72,7 +100,14 @@ export function parseDataAllowance(dataString) {
   return null;
 }
 
-// Check if plan has a specific feature
+/**
+ * Checks if a plan has a specific feature
+ * @param {Object} plan - The plan object to check
+ * @param {string} feature - The feature to look for
+ * @returns {boolean} True if the plan has the feature
+ * @example
+ * hasFeature(plan, "netflix") // returns true if plan includes Netflix
+ */
 export function hasFeature(plan, feature) {
   if (!plan || !feature) return false;
 
@@ -84,7 +119,14 @@ export function hasFeature(plan, feature) {
   return searchText.includes(feature.toLowerCase());
 }
 
-// Extract duration from query text
+/**
+ * Extracts duration/validity period from natural language query
+ * @param {string} queryText - The user query text
+ * @returns {number|null} Duration in days or null if not found
+ * @example
+ * extractDurationFromQuery("1 month plan") // returns 28
+ * extractDurationFromQuery("28 days validity") // returns 28
+ */
 export function extractDurationFromQuery(queryText) {
   let targetDuration = null;
 
@@ -109,7 +151,14 @@ export function extractDurationFromQuery(queryText) {
   return targetDuration;
 }
 
-// Extract budget from query text
+/**
+ * Extracts budget constraint from natural language query
+ * @param {string} queryText - The user query text
+ * @returns {number|null} Budget amount or null if not found
+ * @example
+ * extractBudgetFromQuery("under 500 rupees") // returns 500
+ * extractBudgetFromQuery("budget of ₹300") // returns 300
+ */
 export function extractBudgetFromQuery(queryText) {
   const budgetMatch = queryText.match(/under\s+(?:rs\.?|₹)?\s*(\d+)/i) || 
                       queryText.match(/less\s+than\s+(?:rs\.?|₹)?\s*(\d+)/i) ||
@@ -120,7 +169,14 @@ export function extractBudgetFromQuery(queryText) {
   return null;
 }
 
-// Extract operator from query text
+/**
+ * Extracts telecom operator from natural language query
+ * @param {string} queryText - The user query text
+ * @returns {string|null} Operator name or null if not found
+ * @example
+ * extractOperatorFromQuery("jio plans") // returns 'jio'
+ * extractOperatorFromQuery("airtel recharge") // returns 'airtel'
+ */
 export function extractOperatorFromQuery(queryText) {
   if (queryText.includes('jio') || queryText.includes('geo')) return 'jio';
   else if (queryText.includes('airtel') || queryText.includes('artel')) return 'airtel';
@@ -128,7 +184,14 @@ export function extractOperatorFromQuery(queryText) {
   return null;
 }
 
-// Extract daily data requirement from query text
+/**
+ * Extracts daily data requirement from natural language query
+ * @param {string} queryText - The user query text
+ * @returns {number|null} Daily data amount in GB or null if not found
+ * @example
+ * extractDailyDataFromQuery("2GB per day") // returns 2
+ * extractDailyDataFromQuery("1.5GB daily") // returns 1.5
+ */
 export function extractDailyDataFromQuery(queryText) {
   const dailyDataMatch = queryText.match(/(\d+(\.\d+)?)\s*GB\s*(?:per day|daily)/i);
   if (dailyDataMatch) {
@@ -137,7 +200,14 @@ export function extractDailyDataFromQuery(queryText) {
   return null;
 }
 
-// Process duration parameter from Dialogflow
+/**
+ * Processes duration parameter from Dialogflow entities and query text
+ * @param {Object} params - Dialogflow parameters object
+ * @param {string} queryText - The user query text
+ * @returns {number|null} Duration in days or null if not found
+ * @example
+ * processDurationParameter({duration: {amount: 1, unit: "month"}}, "") // returns 28
+ */
 export function processDurationParameter(params, queryText) {
   // First try to extract from query text
   let targetDuration = extractDurationFromQuery(queryText);
@@ -174,7 +244,14 @@ export function processDurationParameter(params, queryText) {
   return targetDuration;
 }
 
-// Process budget parameter from Dialogflow
+/**
+ * Processes budget parameter from Dialogflow entities and query text
+ * @param {Object} params - Dialogflow parameters object
+ * @param {string} queryText - The user query text
+ * @returns {number|null} Budget amount or null if not found
+ * @example
+ * processBudgetParameter({budget: 500}, "") // returns 500
+ */
 export function processBudgetParameter(params, queryText) {
   let budget = null;
   

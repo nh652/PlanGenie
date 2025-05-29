@@ -1,17 +1,27 @@
 
 // Configuration constants for the telecom API
+/**
+ * @fileoverview Application configuration constants
+ * @module config/constants
+ */
+
+/**
+ * Application configuration object
+ * @type {Object}
+ */
 export const CONFIG = {
   // Server settings
   PORT: process.env.PORT || 3000,
+  NODE_ENV: process.env.NODE_ENV || 'development',
   
   // External API
-  JSON_URL: 'https://raw.githubusercontent.com/nh652/TelcoPlans/main/telecom_plans_improved.json',
+  JSON_URL: process.env.JSON_URL || 'https://raw.githubusercontent.com/nh652/TelcoPlans/main/telecom_plans_improved.json',
   
   // Cache settings
-  CACHE_DURATION: 3600000, // 1 hour
+  CACHE_DURATION: parseInt(process.env.CACHE_DURATION) || 3600000, // 1 hour
   
   // Response limits
-  MAX_PLANS_TO_SHOW: 8,
+  MAX_PLANS_TO_SHOW: parseInt(process.env.MAX_PLANS_TO_SHOW) || 8,
   
   // Available operators
   AVAILABLE_OPERATORS: ['jio', 'airtel', 'vi'],

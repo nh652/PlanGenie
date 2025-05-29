@@ -1,14 +1,28 @@
+/**
+ * @fileoverview Service for fetching and processing telecom plans data
+ * @module services/planService
+ */
+
 import fetch from 'node-fetch';
 import { CONFIG } from '../config/constants.js';
 import { parseValidity, parseDataAllowance, correctOperatorName } from '../utils/textParser.js';
 import { PlanNotFoundError, ValidationError, ExternalAPIError } from '../utils/errors.js';
 import { logInfo, logError, logDebug, logWarn } from '../utils/logger.js';
 
-// Cache configuration
+/** @type {Object|null} Cached plans data */
 let cachedPlans = null;
+
+/** @type {number} Timestamp of last fetch */
 let lastFetchTime = 0;
 
-// Retry configuration
+/**
+ * Retry configuration for external API calls
+ * @type {Object}
+ * @property {number} maxRetries - Maximum number of retry attempts
+ * @property {number} baseDelay - Base delay between retries in milliseconds
+ * @property {number} maxDelay - Maximum delay between retries in milliseconds
+ * @property {number} backoffFactor - Exponential backoff multiplier
+ */
 const RETRY_CONFIG = {
   maxRetries: 3,
   baseDelay: 1000, // 1 second
@@ -16,12 +30,23 @@ const RETRY_CONFIG = {
   backoffFactor: 2
 };
 
-// Sleep utility for retry delays
+/**
+ * Sleep utility for implementing retry delays
+ * @param {number} ms - Milliseconds to sleep
+ * @returns {Promise<void>} Promise that resolves after the specified delay
+ */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Fetch with retry logic
+/**
+ * Fetches data from URL with exponential backoff retry logic
+ * @param {string} url - The URL to fetch from
+ * @param {Object} options - Fetch options
+ * @param {number} [retryCount=0] - Current retry attempt number
+ * @returns {Promise<Response>} The fetch response
+ * @throws {ExternalAPIError} When all retry attempts are exhausted
+ */
 async function fetchWithRetry(url, options, retryCount = 0) {
   try {
     const controller = new AbortController();
@@ -69,7 +94,14 @@ async function fetchWithRetry(url, options, retryCount = 0) {
   }
 }
 
-// Fetch and cache plans from GitHub, with User-Agent header and retry logic
+/**
+ * Fetches and caches telecom plans data from external API with retry logic
+ * @returns {Promise<Object>} The plans data object
+ * @throws {ExternalAPIError} When fetch fails after all retries
+ * @example
+ * const data = await getPlansData();
+ * console.log(data.telecom_providers.jio);
+ */
 export async function getPlansData() {
   const now = Date.now();
   if (!cachedPlans || now - lastFetchTime > CONFIG.CACHE_DURATION) {
@@ -108,7 +140,13 @@ export async function getPlansData() {
   return cachedPlans;
 }
 
-// Flatten all nested prepaid plans for any operator
+/**
+ * Flattens nested prepaid plans structure into a single array
+ * @param {Object} prepaidData - The nested prepaid plans object
+ * @returns {Array<Object>} Flattened array of prepaid plans
+ * @example
+ * const plans = flattenPrepaidPlans(provider.plans.prepaid);
+ */
 export function flattenPrepaidPlans(prepaidData) {
   let plans = [];
   for (const category of Object.values(prepaidData)) {
@@ -123,7 +161,13 @@ export function flattenPrepaidPlans(prepaidData) {
   return plans;
 }
 
-// Flatten all nested postpaid plans for any operator
+/**
+ * Flattens nested postpaid plans structure into a single array
+ * @param {Object|Array} postpaidData - The nested postpaid plans object or array
+ * @returns {Array<Object>} Flattened array of postpaid plans
+ * @example
+ * const plans = flattenPostpaidPlans(provider.plans.postpaid);
+ */
 export function flattenPostpaidPlans(postpaidData) {
   let plans = [];
 

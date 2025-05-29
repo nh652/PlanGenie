@@ -7,11 +7,16 @@
   "scripts": {
     "start": "node index.js",
     "start:secure": "NODE_ENV=production node index.js",
+    "dev": "NODE_ENV=development node index.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest tests/unit",
-    "test:integration": "jest tests/integration"
+    "test:integration": "jest tests/integration",
+    "docs": "node -e \"console.log('API Documentation available at: http://localhost:3000/docs')\"",
+    "docs:validate": "swagger-codegen validate -i docs/api.yaml",
+    "lint": "echo 'ESLint not configured. Consider adding ESLint for code quality.'",
+    "health": "curl -f http://localhost:3000/health || exit 1"
   },
   "jest": {
     "testEnvironment": "node",

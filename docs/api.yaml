@@ -1,0 +1,481 @@
+
+openapi: 3.0.3
+info:
+  title: Telecom Plan Suggestion API
+  description: |
+    A robust webhook service that provides intelligent telecom plan recommendations 
+    based on user queries. Supports natural language processing for budget, duration, 
+    and feature-based plan filtering across major Indian telecom operators.
+    
+    ## Features
+    - Multi-operator support (Jio, Airtel, VI)
+    - Natural language query processing
+    - Budget and duration-based filtering
+    - Voice-only and international roaming plans
+    - OTT benefit filtering
+    - Intelligent spelling correction
+    - Rate limiting and security features
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    url: https://github.com/your-repo
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://your-repl-url.replit.app
+    description: Production server
+  - url: http://localhost:3000
+    description: Development server
+
+paths:
+  /:
+    get:
+      summary: API Status
+      description: Returns basic API status information
+      tags:
+        - Health
+      responses:
+        '200':
+          description: API is running
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Telecom Plan Suggestion API is running"
+
+  /webhook:
+    post:
+      summary: Get Plan Recommendations
+      description: |
+        Main webhook endpoint that processes natural language queries and returns 
+        appropriate telecom plan recommendations based on the user's requirements.
+        
+        Supports filtering by:
+        - Operator (Jio, Airtel, VI)
+        - Budget constraints
+        - Duration/validity period
+        - Plan type (prepaid/postpaid)
+        - Features (voice-only, international roaming, OTT benefits)
+        
+      tags:
+        - Plans
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+            examples:
+              basic_query:
+                summary: Basic plan query
+                value:
+                  queryResult:
+                    queryText: "Show me Jio prepaid plans"
+                    parameters:
+                      operator: "jio"
+              budget_query:
+                summary: Budget-constrained query
+                value:
+                  queryResult:
+                    queryText: "Find Airtel plans under 500 rupees"
+                    parameters:
+                      operator: "airtel"
+                      budget: 500
+              duration_query:
+                summary: Duration-specific query
+                value:
+                  queryResult:
+                    queryText: "28 days validity plans"
+                    parameters:
+                      duration: "28 days"
+              voice_only_query:
+                summary: Voice-only plans
+                value:
+                  queryResult:
+                    queryText: "voice only plans for VI"
+                    parameters:
+                      operator: "vi"
+              international_query:
+                summary: International roaming
+                value:
+                  queryResult:
+                    queryText: "international roaming plans"
+      responses:
+        '200':
+          description: Successful plan recommendations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+              examples:
+                success_response:
+                  summary: Successful plan recommendations
+                  value:
+                    fulfillmentText: |
+                      Here are 3 JIO PREPAID plans:
+
+                      - ₹399: 2GB/day (28 days) Unlimited voice calls, 100 SMS/day
+                      - ₹555: 1.5GB/day (56 days) Unlimited voice calls, 100 SMS/day
+                      - ₹719: 1.5GB/day (84 days) Unlimited voice calls, 100 SMS/day
+                no_plans_response:
+                  summary: No plans found
+                  value:
+                    fulfillmentText: "No PREPAID plans found for the specified criteria. Try adjusting your filters."
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  summary: Validation error
+                  value:
+                    fulfillmentText: "Invalid request format."
+                    error:
+                      code: "VALIDATION_ERROR"
+                      message: "queryResult is required"
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                rate_limit:
+                  summary: Rate limit exceeded
+                  value:
+                    fulfillmentText: "Too many requests. Please try again later."
+                    error:
+                      code: "RATE_LIMIT_EXCEEDED"
+                      message: "Rate limit exceeded"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                server_error:
+                  summary: Server error
+                  value:
+                    fulfillmentText: "Sorry, we encountered an error. Please try again later."
+                    error:
+                      code: "INTERNAL_ERROR"
+                      message: "An unexpected error occurred"
+
+  /health:
+    get:
+      summary: Complete Health Check
+      description: |
+        Comprehensive health check that verifies:
+        - Application status
+        - External API connectivity
+        - Memory usage
+        - System uptime
+        - Environment information
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/live:
+    get:
+      summary: Liveness Probe
+      description: Basic liveness check for container orchestration
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LivenessResponse'
+
+  /health/ready:
+    get:
+      summary: Readiness Probe
+      description: Readiness check that verifies external dependencies
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+
+  /metrics:
+    get:
+      summary: Performance Metrics
+      description: |
+        Returns performance metrics including:
+        - Memory usage
+        - CPU usage
+        - Request counts
+        - Error rates
+        - Response times
+      tags:
+        - Monitoring
+      responses:
+        '200':
+          description: Performance metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+
+components:
+  schemas:
+    WebhookRequest:
+      type: object
+      required:
+        - queryResult
+      properties:
+        queryResult:
+          type: object
+          required:
+            - queryText
+          properties:
+            queryText:
+              type: string
+              description: Natural language query from the user
+              maxLength: 500
+              example: "Show me Jio prepaid plans under 500 rupees"
+            parameters:
+              type: object
+              description: Extracted parameters from the query
+              properties:
+                operator:
+                  type: string
+                  enum: [jio, airtel, vi]
+                  description: Telecom operator name
+                  example: "jio"
+                budget:
+                  type: number
+                  minimum: 1
+                  maximum: 10000
+                  description: Budget constraint in rupees
+                  example: 500
+                duration:
+                  oneOf:
+                    - type: string
+                      example: "28 days"
+                    - type: number
+                      example: 28
+                    - type: object
+                      properties:
+                        amount:
+                          type: number
+                        unit:
+                          type: string
+                  description: Plan validity duration
+                plan_type:
+                  type: string
+                  enum: [prepaid, postpaid]
+                  description: Type of plan
+                  example: "prepaid"
+            intent:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  description: Intent name from Dialogflow
+                  example: "get.plans"
+
+    WebhookResponse:
+      type: object
+      required:
+        - fulfillmentText
+      properties:
+        fulfillmentText:
+          type: string
+          description: Response text for the user
+          example: "Here are 3 JIO PREPAID plans: ..."
+
+    ErrorResponse:
+      type: object
+      required:
+        - fulfillmentText
+      properties:
+        fulfillmentText:
+          type: string
+          description: User-friendly error message
+          example: "Sorry, we encountered an error. Please try again later."
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code for debugging
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              description: Technical error message
+              example: "queryResult is required"
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+        uptime:
+          type: number
+          description: Server uptime in seconds
+          example: 3600
+        version:
+          type: string
+          example: "1.0.0"
+        environment:
+          type: string
+          example: "production"
+        checks:
+          type: object
+          properties:
+            external_api:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [healthy, unhealthy]
+                responseTime:
+                  type: number
+                  description: Response time in milliseconds
+                lastChecked:
+                  type: string
+                  format: date-time
+            memory:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [healthy, unhealthy]
+                usage:
+                  type: object
+                  properties:
+                    used:
+                      type: string
+                      example: "45.2 MB"
+                    free:
+                      type: string
+                      example: "78.8 MB"
+                    total:
+                      type: string
+                      example: "124.0 MB"
+
+    LivenessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [alive]
+          example: "alive"
+        timestamp:
+          type: string
+          format: date-time
+
+    ReadinessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+          example: "ready"
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+          properties:
+            external_api:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [ready, not_ready]
+
+    MetricsResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: number
+          description: Server uptime in seconds
+        memory:
+          type: object
+          properties:
+            rss:
+              type: number
+              description: Resident Set Size in bytes
+            heapTotal:
+              type: number
+              description: Total heap size in bytes
+            heapUsed:
+              type: number
+              description: Used heap size in bytes
+            external:
+              type: number
+              description: External memory usage in bytes
+        cpu:
+          type: object
+          properties:
+            user:
+              type: number
+              description: User CPU time in microseconds
+            system:
+              type: number
+              description: System CPU time in microseconds
+        requests:
+          type: number
+          description: Total number of requests processed
+        errors:
+          type: number
+          description: Total number of errors encountered
+        errorRate:
+          type: number
+          description: Error rate as a percentage
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Optional JWT token for authenticated requests
+
+tags:
+  - name: Plans
+    description: Telecom plan recommendation endpoints
+  - name: Health
+    description: Health check and monitoring endpoints
+  - name: Monitoring
+    description: Performance metrics and monitoring
