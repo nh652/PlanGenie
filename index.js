@@ -14,11 +14,11 @@ const CONFIG = {
 
   
   // Cache settings
-  CACHE_DURATION: 3600000, // 1 hour,
+  CACHE_DURATION: 3600000, // 1 hour
   
   // Rate limiting settings
   RATE_LIMIT_WINDOW: 60000, // 1 minute
-  MAX_REQUESTS_PER_WINDOW: 30
+  MAX_REQUESTS_PER_WINDOW: 30,
   
   // Response limits
   MAX_PLANS_TO_SHOW: 8,
