@@ -34,36 +34,6 @@ const CONFIG = {
     'vodaphone': 'vi',
     'idea': 'vi'
   },
-
-// Health check endpoint
-app.get('/health', async (req, res) => {
-  try {
-    // Test data source connectivity
-    const startTime = Date.now();
-    await getPlansData();
-    const responseTime = Date.now() - startTime;
-    
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      dataSource: {
-        cached: cachedPlans !== null,
-        lastFetch: new Date(lastFetchTime).toISOString(),
-        responseTime: `${responseTime}ms`
-      }
-    });
-  } catch (error) {
-    res.status(503).json({
-      status: 'unhealthy',
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-
   
   // Duration mappings for month expressions
   MONTH_MAPPINGS: {
@@ -163,6 +133,34 @@ function setCachedResponse(key, response) {
 // Root endpoint for Replit preview
 app.get('/', (req, res) => {
   res.send('Telecom Plan Suggestion API is running');
+});
+
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Test data source connectivity
+    const startTime = Date.now();
+    await getPlansData();
+    const responseTime = Date.now() - startTime;
+    
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      dataSource: {
+        cached: cachedPlans !== null,
+        lastFetch: new Date(lastFetchTime).toISOString(),
+        responseTime: `${responseTime}ms`
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Operator name correction mapping
