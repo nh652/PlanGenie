@@ -2,13 +2,49 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import fetch from 'node-fetch';
 
-// Add this right after your imports and before any other code
+// Environment-based configuration
 const CONFIG = {
   // Server settings
   PORT: process.env.PORT || 3000,
+  NODE_ENV: process.env.NODE_ENV || 'development',
   
   // External API
   JSON_URL: 'https://raw.githubusercontent.com/nh652/TelcoPlans/main/telecom_plans_improved.json',
+
+// Rate limiting
+const requestCounts = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 30;
+
+function rateLimitMiddleware(req, res, next) {
+  const clientId = req.ip || 'unknown';
+  const now = Date.now();
+  
+  if (!requestCounts.has(clientId)) {
+    requestCounts.set(clientId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return next();
+  }
+  
+  const clientData = requestCounts.get(clientId);
+  
+  if (now > clientData.resetTime) {
+    requestCounts.set(clientId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return next();
+  }
+  
+  if (clientData.count >= MAX_REQUESTS_PER_WINDOW) {
+    return res.status(429).json({
+      fulfillmentText: 'Too many requests. Please wait a moment before trying again.'
+    });
+  }
+  
+  clientData.count++;
+  next();
+}
+
+app.use('/webhook', rateLimitMiddleware);
+
+
   
   // Cache settings
   CACHE_DURATION: 3600000, // 1 hour
@@ -27,6 +63,36 @@ const CONFIG = {
     'vodaphone': 'vi',
     'idea': 'vi'
   },
+
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Test data source connectivity
+    const startTime = Date.now();
+    await getPlansData();
+    const responseTime = Date.now() - startTime;
+    
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      dataSource: {
+        cached: cachedPlans !== null,
+        lastFetch: new Date(lastFetchTime).toISOString(),
+        responseTime: `${responseTime}ms`
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+
   
   // Duration mappings for month expressions
   MONTH_MAPPINGS: {
@@ -67,6 +133,31 @@ let cachedPlans = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = CONFIG.CACHE_DURATION;
 
+// Response cache for frequently asked queries
+const responseCache = new Map();
+const RESPONSE_CACHE_DURATION = 300000; // 5 minutes
+
+function getCachedResponse(key) {
+  const cached = responseCache.get(key);
+  if (cached && Date.now() - cached.timestamp < RESPONSE_CACHE_DURATION) {
+    return cached.response;
+  }
+  return null;
+}
+
+function setCachedResponse(key, response) {
+  responseCache.set(key, {
+    response,
+    timestamp: Date.now()
+  });
+  
+  // Clean old entries if cache gets too large
+  if (responseCache.size > 100) {
+    const oldestKey = responseCache.keys().next().value;
+    responseCache.delete(oldestKey);
+  }
+}
+
 // Root endpoint for Replit preview
 app.get('/', (req, res) => {
   res.send('Telecom Plan Suggestion API is running');
@@ -97,16 +188,22 @@ function correctOperatorName(input) {
 // Available operators in our database
 const AVAILABLE_OPERATORS = CONFIG.AVAILABLE_OPERATORS;
 
-// Fetch and cache plans from GitHub, with User-Agent header
+// Fetch and cache plans from GitHub, with User-Agent header and timeout
 async function getPlansData() {
   const now = Date.now();
   if (!cachedPlans || now - lastFetchTime > CACHE_DURATION) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch(JSON_URL, {
         headers: {
           'User-Agent': 'TelecomPlanBot/1.0'
-        }
+        },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       cachedPlans = await response.json();
       lastFetchTime = now;
@@ -227,10 +324,31 @@ function hasFeature(plan, feature) {
   return searchText.includes(feature.toLowerCase());
 }
 
+// Input validation middleware
+function validateWebhookRequest(req, res, next) {
+  if (!req.body || !req.body.queryResult) {
+    return res.status(400).json({ 
+      fulfillmentText: 'Invalid request format. Missing queryResult.' 
+    });
+  }
+  
+  const { queryResult } = req.body;
+  if (!queryResult.queryText) {
+    return res.status(400).json({ 
+      fulfillmentText: 'Invalid request format. Missing queryText.' 
+    });
+  }
+  
+  // Sanitize input
+  queryResult.queryText = queryResult.queryText.trim().substring(0, 1000); // Limit length
+  
+  next();
+}
+
 // Main webhook endpoint
-app.post('/webhook', async (req, res) => {
+app.post('/webhook', validateWebhookRequest, async (req, res) => {
   try {
-    console.log('Received webhook request:', JSON.stringify(req.body));
+    console.log('Received webhook request:', JSON.stringify(req.body, null, 2));
     const { queryResult } = req.body;
     const params = queryResult.parameters || {};
     const queryText = (queryResult.queryText || '').toLowerCase();
@@ -574,6 +692,29 @@ app.post('/webhook', async (req, res) => {
       requestedFeatures.push('international roaming');
     }
 
+    // Smart plan ranking function
+    function calculatePlanScore(plan) {
+      let score = 0;
+      const planPrice = typeof plan.price === 'string' ? parseInt(plan.price.replace(/[^0-9]/g, '')) : plan.price;
+      const dataAmount = parseDataAllowance(plan.data) || 0;
+      const validityDays = parseValidity(plan.validity) || 28;
+      
+      // Price-to-data ratio (lower is better)
+      if (dataAmount > 0) {
+        score += (dataAmount / planPrice) * 100;
+      }
+      
+      // Validity bonus
+      score += validityDays * 0.1;
+      
+      // Feature bonuses
+      if (hasFeature(plan, 'unlimited')) score += 50;
+      if (hasFeature(plan, 'ott')) score += 20;
+      if (hasFeature(plan, 'roaming')) score += 15;
+      
+      return score;
+    }
+
     // Filter plans based on requested features
     if (requestedFeatures.length > 0) {
       const plansWithFeatures = filtered.filter(plan => 
@@ -746,8 +887,22 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
+    // Format response with metadata
+    const response = {
+      fulfillmentText: responseText,
+      metadata: {
+        timestamp: new Date().toISOString(),
+        planCount: plansToShow.length,
+        totalAvailable: filtered.length,
+        operator: operator || 'all',
+        planType: planType,
+        cached: cachedPlans !== null
+      }
+    };
+    
     console.log('Response:', responseText);
-    res.json({ fulfillmentText: responseText });
+    console.log('Metadata:', response.metadata);
+    res.json(response);
 
   } catch (error) {
     console.error('Webhook error:', error);
@@ -755,7 +910,31 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+// Enhanced logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.path}`);
+  next();
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', {
+    error: err.message,
+    stack: err.stack,
+    timestamp: new Date().toISOString(),
+    url: req.url,
+    method: req.method
+  });
+  
+  res.status(500).json({ 
+    fulfillmentText: 'Sorry, we encountered a server error. Please try again later.',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
 // Start server
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
