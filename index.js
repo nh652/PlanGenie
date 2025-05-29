@@ -24,6 +24,19 @@ import {
   validateWebhookRequest 
 } from './middleware/errorHandler.js';
 import { 
+  webhookSchema, 
+  validateRequest, 
+  sanitizeInput 
+} from './middleware/validation.js';
+import {
+  rateLimiter,
+  webhookRateLimiter,
+  speedLimiter,
+  securityHeaders,
+  xssProtection,
+  requestTimeout
+} from './middleware/security.js';
+import { 
   ValidationError, 
   OperatorNotSupportedError,
   PlanNotFoundError 
@@ -31,10 +44,32 @@ import {
 
 const app = express();
 
-// Body parser with error handling
+// Trust proxy for rate limiting (important for production)
+app.set('trust proxy', 1);
+
+// Security headers
+app.use(securityHeaders);
+
+// Global rate limiting and speed limiting
+app.use(rateLimiter);
+app.use(speedLimiter);
+
+// Request timeout
+app.use(requestTimeout(30000));
+
+// XSS protection
+app.use(xssProtection);
+
+// Body parser with security limits
 app.use(bodyParser.json({ 
-  limit: '10mb',
-  strict: true 
+  limit: '1mb', // Reduced from 10mb for security
+  strict: true,
+  verify: (req, res, buf) => {
+    // Additional verification can be added here
+    if (buf.length === 0) {
+      throw new Error('Empty request body');
+    }
+  }
 }));
 
 // Request timeout middleware
@@ -50,8 +85,13 @@ app.get('/', (req, res) => {
   res.send('Telecom Plan Suggestion API is running');
 });
 
-// Main webhook endpoint with validation and error handling
-app.post('/webhook', validateWebhookRequest, asyncHandler(async (req, res) => {
+// Main webhook endpoint with comprehensive validation and security
+app.post('/webhook', 
+  webhookRateLimiter, // Stricter rate limiting for webhook
+  validateWebhookRequest, 
+  validateRequest(webhookSchema), // Joi validation
+  sanitizeInput, // Input sanitization
+  asyncHandler(async (req, res) => {
   console.log('Received webhook request:', JSON.stringify(req.body));
   
   const { queryResult } = req.body;

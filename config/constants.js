@@ -40,6 +40,16 @@ export const CONFIG = {
     'three months': 84
   },
   
+  // Security settings
+  SECURITY: {
+    MAX_QUERY_LENGTH: 500,
+    REQUEST_TIMEOUT: 30000,
+    RATE_LIMIT_WINDOW: 15 * 60 * 1000, // 15 minutes
+    RATE_LIMIT_MAX: 100,
+    WEBHOOK_RATE_LIMIT_MAX: 30,
+    BODY_SIZE_LIMIT: '1mb'
+  },
+  
   // Conversational responses
   CONVERSATIONAL_RESPONSES: {
     'hi': ['Hello! How can I help you today?', 'Hi there! Looking for a mobile plan?', 'Hello! Need help finding a plan?'],

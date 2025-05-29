@@ -1,6 +1,19 @@
 
 import { TelecomAPIError } from '../utils/errors.js';
 
+// Rate limit error handler
+export function handleRateLimitError(req, res, next) {
+  // This will be called when rate limit is exceeded
+  res.status(429).json({
+    fulfillmentText: 'Too many requests. Please try again later.',
+    error: {
+      code: 'RATE_LIMIT_ERROR',
+      message: 'Rate limit exceeded',
+      retryAfter: req.rateLimit?.resetTime || 'unknown'
+    }
+  });
+}
+
 // Global error handling middleware
 export function errorHandler(err, req, res, next) {
   console.error('Error occurred:', {
