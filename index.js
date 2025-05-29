@@ -41,6 +41,7 @@ import {
   OperatorNotSupportedError,
   PlanNotFoundError 
 } from './utils/errors.js';
+import { responseGenerator } from './utils/responseGenerator.js';
 
 const app = express();
 
@@ -107,13 +108,9 @@ app.post('/webhook',
   }
 
     // Handle conversational queries first
-    const normalizedQuery = queryText.toLowerCase().trim();
-    for (const [trigger, responses] of Object.entries(CONFIG.CONVERSATIONAL_RESPONSES)) {
-      if (normalizedQuery.includes(trigger)) {
-        // Return a random response from the available options
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        return res.json({ fulfillmentText: randomResponse });
-      }
+    const conversationalResponse = responseGenerator.generateConversationalResponse(queryText);
+    if (conversationalResponse) {
+      return res.json({ fulfillmentText: conversationalResponse });
     }
 
     // Extract sorting preference (cheapest, best, etc.)
@@ -132,13 +129,14 @@ app.post('/webhook',
 
     // Operator extraction with spelling correction
     let operator = params.operator?.toLowerCase();
+    let originalOperator = operator;
     let correctedOperator = null;
-    let operatorCorrectionMessage = '';
+    let missingOperator = null;
 
     if (operator) {
       correctedOperator = correctOperatorName(operator);
       if (correctedOperator && correctedOperator !== operator) {
-        operatorCorrectionMessage = `(Assuming you meant ${correctedOperator.toUpperCase()} instead of ${operator.toUpperCase()}) `;
+        originalOperator = operator;
         operator = correctedOperator;
       }
     } else {
@@ -149,10 +147,9 @@ app.post('/webhook',
     console.log('Selected operator:', operator);
 
     // Check if requested operator is available
-    let missingOperatorMessage = '';
     if (operator && !CONFIG.AVAILABLE_OPERATORS.includes(operator)) {
       // For unsupported operators, we'll set a note but continue
-      missingOperatorMessage = `Note: I don't have information on ${operator.toUpperCase()} plans. `;
+      missingOperator = operator;
       operator = null; // Reset to show all operators
     }
 
@@ -213,7 +210,15 @@ app.post('/webhook',
     } catch (error) {
       if (error instanceof PlanNotFoundError) {
         // Handle case where no plans are found for the specified criteria
-        const responseText = `${missingOperatorMessage}${error.message}. Try adjusting your search criteria or checking other operators.`;
+        const responseParams = {
+          plans: [],
+          filteredPlans: [],
+          queryText,
+          operator,
+          planType,
+          missingOperator
+        };
+        const responseText = responseGenerator.generateResponse(responseParams) + '. Try adjusting your search criteria or checking other operators.';
         return res.json({ fulfillmentText: responseText });
       }
       // Re-throw other errors to be handled by global error handler
@@ -276,7 +281,16 @@ app.post('/webhook',
 
       if (plansWithFeatures.length === 0) {
         // If no plans have all requested features, return early with a message
-        const responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()} plans found with ${requestedFeatures.join(' and ')}.`;
+        const responseParams = {
+          plans,
+          filteredPlans: [],
+          queryText,
+          operator,
+          planType,
+          requestedFeatures,
+          missingOperator
+        };
+        const responseText = responseGenerator.generateResponse(responseParams);
         console.log('Response:', responseText);
         return res.json({ fulfillmentText: responseText });
       }
@@ -293,125 +307,47 @@ app.post('/webhook',
       filtered = internationalPlans;
 
       if (filtered.length === 0) {
-        const responseText = `No ${operator ? operator.toUpperCase() + ' ' : ''}international roaming plans found. Please check the operator's website or customer care for international roaming activation and rates.`;
+        const responseParams = {
+          plans,
+          filteredPlans: [],
+          queryText,
+          operator,
+          planType,
+          isInternationalQuery: true,
+          missingOperator
+        };
+        const responseText = responseGenerator.generateResponse(responseParams);
         return res.json({ fulfillmentText: responseText });
       }
     }
 
-    // Limit number of plans to prevent response from being too long
-    const plansToShow = filtered.slice(0, CONFIG.MAX_PLANS_TO_SHOW);
+    // Prepare parameters for response generation
+    const responseParams = {
+      plans,
+      filteredPlans: filtered,
+      alternativePlans: [],
+      queryText,
+      operator,
+      planType,
+      budget,
+      targetDuration,
+      isVoiceOnly,
+      sortBy,
+      correctedOperator: originalOperator !== operator ? operator : null,
+      originalOperator: originalOperator !== operator ? originalOperator : null,
+      missingOperator,
+      requestedFeatures,
+      unavailableFeatures,
+      isInternationalQuery
+    };
 
-    let responseText = '';
-
-    // Check which features are available/unavailable
-    if (unavailableFeatures.length > 0) {
-      responseText += `Note: None of these plans include ${unavailableFeatures.join(' or ')}.\n\n`;
+    // If no exact matches found, try to find alternatives
+    if (filtered.length === 0 && targetDuration && plans.length > 0) {
+      responseParams.alternativePlans = findSimilarPlans(plans, targetDuration, budget);
     }
 
-    if (plansToShow.length > 0) {
-      // Include budget in the response if specified
-      const budgetText = budget ? ` under ₹${budget}` : '';
-
-      // Add voice-only to the description if requested
-      const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
-
-      // Add sorting information if specified
-      const sortText = sortBy === 'price' ? ' (cheapest first)' : 
-                      sortBy === 'value' ? ' (best value first)' : '';
-
-      responseText += `Here are ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans${budgetText}${targetDuration ? ' with ' + targetDuration + ' days validity' : ''}${sortText}:\n\n` +
-        plansToShow.map(plan => {
-          // Handle different validity formats and undefined values
-          let validity = '';
-          if (plan.validity) {
-            if (plan.validity === 'base plan') validity = 'with base plan';
-            else if (plan.validity === 'bill cycle' || plan.validity === 'monthly') validity = 'monthly bill cycle';
-            else if (typeof plan.validity === 'number') validity = `${plan.validity} days`;
-            else validity = plan.validity;
-          } else if (planType === 'postpaid') {
-            // Default for postpaid when validity is missing
-            validity = 'monthly bill cycle';
-          }
-
-          // Only add the validity part if we have something meaningful
-          const validityText = validity ? ` (${validity})` : '';
-
-          // Include the provider name if not specified in the search
-          const providerText = !operator && plan.provider ? `[${plan.provider.toUpperCase()}] ` : '';
-
-          const benefits = [plan.benefits, plan.additional_benefits].filter(Boolean).join(', ');
-          return `- ${providerText}₹${plan.price}: ${plan.data}${validityText}${benefits ? ' ' + benefits : ''}`;
-        }).join('\n');
-
-      // Add note if results were limited
-      if (filtered.length > CONFIG.MAX_PLANS_TO_SHOW) {
-        responseText += `\n\n(Showing ${CONFIG.MAX_PLANS_TO_SHOW} out of ${filtered.length} available plans)`;
-      }
-    } else {
-      // Add a fallback that shows plans with similar validity if nothing matches exactly
-      if (targetDuration && plans.length > 0) {
-        // Try to find plans with similar validity that also meet budget constraints
-        const similarPlans = findSimilarPlans(plans, targetDuration, budget);
-
-        if (similarPlans.length > 0) {
-          const budgetText = budget ? ` under ₹${budget}` : '';
-          // Add voice-only to the description if requested
-          const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
-
-          responseText += `No exact ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans with ${targetDuration} days validity${budgetText} found. Here are some alternatives:\n\n` +
-            similarPlans.map(plan => {
-              // Handle different validity formats and undefined values
-              let validity = '';
-              if (plan.validity) {
-                if (plan.validity === 'base plan') validity = 'with base plan';
-                else if (plan.validity === 'bill cycle' || plan.validity === 'monthly') validity = 'monthly bill cycle';
-                else if (typeof plan.validity === 'number') validity = `${plan.validity} days`;
-                else validity = plan.validity;
-              } else if (planType === 'postpaid') {
-                // Default for postpaid when validity is missing
-                validity = 'monthly bill cycle';
-              }
-
-              // Only add the validity part if we have something meaningful
-              const validityText = validity ? ` (${validity})` : '';
-
-              // Include the provider name if not specified in the search
-              const providerText = !operator && plan.provider ? `[${plan.provider.toUpperCase()}] ` : '';
-
-              const benefits = [plan.benefits, plan.additional_benefits].filter(Boolean).join(', ');
-              return `- ${providerText}₹${plan.price}: ${plan.data}${validityText}${benefits ? ' ' + benefits : ''}`;
-            }).join('\n');
-        } else {
-          const budgetText = budget ? ` under ₹${budget}` : '';
-          // Add voice-only to the description if requested
-          const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
-
-          responseText += `No matching ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans found with ${targetDuration} days validity${budgetText}. Try adjusting your filters.`;
-        }
-      } else if (budget && plans.length > 0) {
-        // If we're just filtering by budget and nothing matches
-        // Add voice-only to the description if requested
-        const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
-
-        responseText += `No ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans found under ₹${budget}. The cheapest available plan is ₹${Math.min(...plans.map(p => p.price))}.`;
-      } else if (plans.length > 0) {
-        // If we have no plans matching filters but we have plans for this operator and type
-        const budgetText = budget ? ` under ₹${budget}` : '';
-        // Add voice-only to the description if requested
-        const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
-
-        responseText += `No matching ${operator ? operator.toUpperCase() + ' ' : ''}${planType.toUpperCase()}${voiceText} plans found${targetDuration ? ' with ' + targetDuration + ' days validity' : ''}${budgetText}.`;
-        if (targetDuration || budget) {
-          responseText += ' Try adjusting your filters.';
-        }
-      } else {
-        // If no plans found for this operator and type
-        // Add voice-only to the description if requested
-        const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
-
-        responseText += `No ${planType.toUpperCase()}${voiceText} plans available for ${operator ? operator.toUpperCase() : 'any operator'}. Would you like to check ${planType === 'prepaid' ? 'postpaid' : 'prepaid'} plans instead?`;
-      }
-    }
+    // Generate response using ResponseGenerator
+    const responseText = responseGenerator.generateResponse(responseParams);
 
     console.log('Response:', responseText);
     res.json({ fulfillmentText: responseText });
