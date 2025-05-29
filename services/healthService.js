@@ -201,6 +201,8 @@ class HealthService {
 }
 
 export const healthService = new HealthService();
+import { CONFIG } from '../config/constants.js';
+import { logInfo, logError } from '../utils/logger.js';
 
 class HealthService {
   constructor() {
