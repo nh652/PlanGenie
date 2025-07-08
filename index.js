@@ -1137,22 +1137,24 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     // Get GPT recommendation if we have plans to show
     if (plansToShow.length > 0) {
-      const planSummary = plansToShow.map((plan, idx) => {
-        return `${idx + 1}. ₹${plan.price} for ${plan.data} (${plan.validity || 'N/A'}): ${plan.benefits || 'No benefits listed'}`;
-      }).join('\n');
+      const gptPrompt = `
+User is searching for ${operator ? operator.toUpperCase() : "ANY"} ${planType.toUpperCase()} plans.
+Their preferences:
+- Budget: ${budget || "Not specified"}
+- Duration: ${targetDuration ? `${targetDuration} days` : "Any"}
+- Voice only: ${isVoiceOnly ? "Yes" : "No"}
+- Special features: ${requestedFeatures.length > 0 ? requestedFeatures.join(', ') : "None"}
 
-      const dynamicPrompt = `
-User is looking for ${operator || 'any'} ${planType} plans.
-Here are ${plansToShow.length} plans found:
+Here are the filtered plans:
 
-${planSummary}
-
-Give a natural-sounding recommendation for the best 1-2 plans.
-Be friendly and conversational.
-Also suggest if user should explore further options.
+${plansToShow.map(p => {
+  const validity = p.validity ? `(${p.validity})` : '';
+  const benefits = [p.benefits, p.additional_benefits].filter(Boolean).join(', ');
+  return `• ₹${p.price}: ${p.data} ${validity}${benefits ? ' - ' + benefits : ''}`;
+}).join('\n')}
 `;
 
-      const gptResponse = await getGPTRecommendation(dynamicPrompt);
+      const gptResponse = await getGPTRecommendation(gptPrompt);
       if (gptResponse) {
         responseText = gptResponse;
       }
