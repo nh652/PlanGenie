@@ -29,25 +29,25 @@ const CONFIG = {
   // Server settings
   PORT: process.env.PORT || 3000,
   NODE_ENV: process.env.NODE_ENV || 'development',
-  
+
   // External API
   JSON_URL: 'https://raw.githubusercontent.com/nh652/TelcoPlans/main/telecom_plans_improved.json',
 
 
-  
+
   // Cache settings
   CACHE_DURATION: 3600000, // 1 hour
-  
+
   // Rate limiting settings
   RATE_LIMIT_WINDOW: 60000, // 1 minute
   MAX_REQUESTS_PER_WINDOW: 30,
-  
+
   // Response limits
   MAX_PLANS_TO_SHOW: 8,
-  
+
   // Available operators
   AVAILABLE_OPERATORS: ['jio', 'airtel', 'vi'],
-  
+
   // Operator name corrections
   OPERATOR_CORRECTIONS: {
     'geo': 'jio',
@@ -56,7 +56,7 @@ const CONFIG = {
     'vodaphone': 'vi',
     'idea': 'vi'
   },
-  
+
   // Duration mappings for month expressions
   MONTH_MAPPINGS: {
     '1 month': 28,
@@ -71,7 +71,7 @@ const CONFIG = {
     '3 months': 84,
     'three months': 84
   },
-  
+
   // Conversational responses
   CONVERSATIONAL_RESPONSES: {
     'hi': ['Hello! How can I help you today?', 'Hi there! Looking for a mobile plan?', 'Hello! Need help finding a plan?'],
@@ -94,25 +94,25 @@ const requestCounts = new Map();
 function rateLimitMiddleware(req, res, next) {
   const clientId = req.ip || 'unknown';
   const now = Date.now();
-  
+
   if (!requestCounts.has(clientId)) {
     requestCounts.set(clientId, { count: 1, resetTime: now + CONFIG.RATE_LIMIT_WINDOW });
     return next();
   }
-  
+
   const clientData = requestCounts.get(clientId);
-  
+
   if (now > clientData.resetTime) {
     requestCounts.set(clientId, { count: 1, resetTime: now + CONFIG.RATE_LIMIT_WINDOW });
     return next();
   }
-  
+
   if (clientData.count >= CONFIG.MAX_REQUESTS_PER_WINDOW) {
     return res.status(429).json({
       fulfillmentText: 'Too many requests. Please wait a moment before trying again.'
     });
   }
-  
+
   clientData.count++;
   next();
 }
@@ -144,7 +144,7 @@ function setCachedResponse(key, response) {
     response,
     timestamp: Date.now()
   });
-  
+
   // Clean old entries if cache gets too large
   if (responseCache.size > 100) {
     const oldestKey = responseCache.keys().next().value;
@@ -189,7 +189,7 @@ app.get('/health', async (req, res) => {
     const startTime = Date.now();
     await getPlansData();
     const responseTime = Date.now() - startTime;
-    
+
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -239,31 +239,31 @@ const AVAILABLE_OPERATORS = CONFIG.AVAILABLE_OPERATORS;
 async function getPlansData(retryCount = 0) {
   const now = Date.now();
   const maxRetries = 2;
-  
+
   if (!cachedPlans || now - lastFetchTime > CACHE_DURATION) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
+
       const response = await fetch(JSON_URL, {
         headers: {
           'User-Agent': 'TelecomPlanBot/1.0'
         },
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       cachedPlans = await response.json();
       lastFetchTime = now;
       console.log('Successfully fetched fresh plan data');
-      
+
     } catch (error) {
       console.error(`Failed to fetch plans (attempt ${retryCount + 1}):`, error);
-      
+
       // Retry logic with exponential backoff
       if (retryCount < maxRetries) {
         const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s delays
@@ -271,7 +271,7 @@ async function getPlansData(retryCount = 0) {
         await new Promise(resolve => setTimeout(resolve, delay));
         return getPlansData(retryCount + 1);
       }
-      
+
       // If we have cached data, use it despite being stale
       if (cachedPlans) {
         console.warn('Using stale cached data due to fetch failure');
@@ -279,14 +279,14 @@ async function getPlansData(retryCount = 0) {
         console.warn(`Cache is ${cacheAge} minutes old`);
         return cachedPlans;
       }
-      
+
       // No cached data available - provide a more specific error
       const errorMessage = error.name === 'AbortError' ? 
         'Request timed out while fetching plan data' :
         error.message.includes('fetch') ? 
         'Unable to connect to plan data source' :
         `Data fetch failed: ${error.message}`;
-        
+
       throw new Error(`${errorMessage}. Please try again in a few moments.`);
     }
   }
@@ -444,17 +444,17 @@ function validateWebhookRequest(req, res, next) {
       fulfillmentText: 'Invalid request format. Missing queryResult.' 
     });
   }
-  
+
   const { queryResult } = req.body;
   if (!queryResult.queryText) {
     return res.status(400).json({ 
       fulfillmentText: 'Invalid request format. Missing queryText.' 
     });
   }
-  
+
   // Sanitize input
   queryResult.queryText = queryResult.queryText.trim().substring(0, 1000); // Limit length
-  
+
   next();
 }
 
@@ -478,14 +478,14 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     const paginationContext = contexts.find(ctx => ctx.name.endsWith('/contexts/pagination'));
 
     const isShowMoreIntent = queryResult.intent?.displayName?.toLowerCase().includes("show more");
-    
+
     console.log("PAGINATION CONTEXT:", paginationContext);
     console.log("IS SHOW MORE INTENT:", isShowMoreIntent);
 
     // Handle conversational queries first with GPT
     const conversationalQueries = ['hi', 'hello', 'good morning', 'how are you', 'thank you', 'bye', 'thanks'];
     const normalizedQuery = queryText.toLowerCase().trim();
-    
+
     if (conversationalQueries.some(q => normalizedQuery.includes(q))) {
       try {
         const gptReply = await openai.chat.completions.create({
@@ -496,7 +496,7 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
           ],
           max_tokens: 60,
         });
-        
+
         return res.json({ fulfillmentText: gptReply.choices[0].message.content });
       } catch (error) {
         console.error('GPT API error for conversational query:', error);
@@ -565,7 +565,7 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       if (queryText.includes('jio') || queryText.includes('geo')) newOperatorFromQuery = 'jio';
       else if (queryText.includes('airtel') || queryText.includes('artel')) newOperatorFromQuery = 'airtel';
       else if (queryText.includes('vi') || queryText.includes('vodafone') || queryText.includes('idea')) newOperatorFromQuery = 'vi';
-      
+
       if (newOperatorFromQuery && newOperatorFromQuery !== paginationContext.parameters.originalOperator) {
         operator = newOperatorFromQuery;
         console.log("Override pagination context - new operator from query:", operator);
@@ -613,7 +613,7 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     // Plan type detection (prepaid/postpaid)
     let planType = params.plan_type?.toLowerCase();
-    
+
     // For show more intent, preserve the original plan type from pagination context
     if (isShowMoreIntent && paginationContext?.parameters?.originalPlanType) {
       planType = paginationContext.parameters.originalPlanType;
@@ -931,20 +931,20 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       const planPrice = typeof plan.price === 'string' ? parseInt(plan.price.replace(/[^0-9]/g, '')) : plan.price;
       const dataAmount = parseDataAllowance(plan.data) || 0;
       const validityDays = parseValidity(plan.validity) || 28;
-      
+
       // Price-to-data ratio (lower is better)
       if (dataAmount > 0) {
         score += (dataAmount / planPrice) * 100;
       }
-      
+
       // Validity bonus
       score += validityDays * 0.1;
-      
+
       // Feature bonuses
       if (hasFeature(plan, 'unlimited')) score += 50;
       if (hasFeature(plan, 'ott')) score += 20;
       if (hasFeature(plan, 'roaming')) score += 15;
-      
+
       return score;
     }
 
@@ -995,11 +995,11 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       filtered = internationalPlans;
     }
 
-    
-    
+
+
     // Slice plans based on offset
     const plansToShow = filtered.slice(offset, offset + DEFAULT_PAGE_SIZE);
-    
+
     console.log("PLANS RETURNED:", plansToShow.length);
 
     let responseText = '';
@@ -1049,13 +1049,13 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
         const startIndex = offset + 1;
         const endIndex = Math.min(offset + plansToShow.length, filtered.length);
         const hasMore = filtered.length > offset + DEFAULT_PAGE_SIZE;
-        
+
         if (offset === 0) {
           responseText += `\n\n(Showing first ${plansToShow.length} of ${filtered.length} available plans)`;
         } else {
           responseText += `\n\n(Showing ${startIndex}-${endIndex} of ${filtered.length} available plans)`;
         }
-        
+
         if (hasMore) {
           responseText += ` - Ask for "more" to see additional plans.`;
         }
@@ -1189,19 +1189,22 @@ Also suggest if user should explore further options.
         cached: cachedPlans !== null
       }
     };
-    
+
     console.log('Response:', responseText);
     console.log('Metadata:', response.metadata);
-    
-    // Save response in smart cache
-    setSmartCache(cacheKey, response);
+
+    // Save response in smart cache (store the simple format)
+    const cacheResponse = outputContexts.length > 0 ? 
+      { fulfillmentText: responseText, outputContexts: outputContexts } :
+      { fulfillmentText: responseText };
+    setSmartCache(cacheKey, cacheResponse);
     console.log("💾 Response saved to smart cache");
-    
+
     res.json(response);
 
   } catch (error) {
     console.error('Webhook error:', error);
-    
+
     // If we have a user query and no critical error, try GPT fallback
     if (req.body?.queryResult?.queryText && !error.message.includes('Request timed out')) {
       try {
@@ -1212,10 +1215,10 @@ Also suggest if user should explore further options.
       }
     }
     console.error('Webhook error:', error);
-    
+
     // Provide specific error messages based on error type
     let userMessage = 'Sorry, we encountered an error. Please try again later.';
-    
+
     if (error.message.includes('Request timed out')) {
       userMessage = 'Our plan data service is responding slowly. Please try again in a moment.';
     } else if (error.message.includes('Unable to connect')) {
@@ -1227,7 +1230,7 @@ Also suggest if user should explore further options.
     } else if (error.message.includes('HTTP 5')) {
       userMessage = 'Our data provider is experiencing issues. Please try again shortly.';
     }
-    
+
     res.json({ 
       fulfillmentText: userMessage,
       metadata: {
@@ -1255,7 +1258,7 @@ app.use((err, req, res, next) => {
     url: req.url,
     method: req.method
   });
-  
+
   res.status(500).json({ 
     fulfillmentText: 'Sorry, we encountered a server error. Please try again later.',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
