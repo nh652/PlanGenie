@@ -479,10 +479,31 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     const isShowMoreIntent = queryResult.intent?.displayName?.toLowerCase().includes("show more");
     const isFollowUpIntent = queryResult.intent?.displayName?.toLowerCase().includes("follow up");
+    const isFeedbackIntent = queryResult.intent?.displayName?.toLowerCase().includes("user feedback");
 
     console.log("PAGINATION CONTEXT:", paginationContext);
     console.log("IS SHOW MORE INTENT:", isShowMoreIntent);
     console.log("IS FOLLOW UP INTENT:", isFollowUpIntent);
+    console.log("IS FEEDBACK INTENT:", isFeedbackIntent);
+
+    // Handle user feedback intent
+    if (isFeedbackIntent) {
+      const userSaid = queryText.toLowerCase();
+      
+      let feedbackResponse = '';
+
+      if (userSaid.includes('yes') || userSaid.includes('helpful') || userSaid.includes('thanks') || userSaid.includes('thank')) {
+        feedbackResponse = "Glad I could help! If you ever need another plan, I'm just one message away 😊";
+      } else if (userSaid.includes('no') || userSaid.includes('not') || userSaid.includes('useless')) {
+        feedbackResponse = "Thanks for the feedback! I'll try to suggest better options next time. Feel free to tell me what you're looking for.";
+      } else {
+        feedbackResponse = "Thanks for your feedback! I'm here whenever you need help finding mobile plans.";
+      }
+
+      return res.json({
+        fulfillmentText: feedbackResponse
+      });
+    }
 
     // Handle conversational queries first with GPT
     const conversationalQueries = ['hi', 'hello', 'good morning', 'how are you', 'thank you', 'bye', 'thanks'];
@@ -1124,6 +1145,9 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
           responseText += ` - Ask for "more" to see additional plans.`;
         }
       }
+
+      // Add feedback question for plan recommendations
+      responseText += `\n\nWas this helpful? 👍 or 👎`;
     } else {
       // Add a fallback that shows plans with similar validity if nothing matches exactly
       if (targetDuration && plans.length > 0) {
@@ -1167,6 +1191,9 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
               const benefits = [plan.benefits, plan.additional_benefits].filter(Boolean).join(', ');
               return `- ${providerText}₹${plan.price}: ${plan.data}${validityText}${benefits ? ' ' + benefits : ''}`;
             }).join('\n');
+
+          // Add feedback question for alternative suggestions
+          responseText += `\n\nWas this helpful? 👍 or 👎`;
         } else {
           const budgetText = budget ? ` under ₹${budget}` : '';
           // Add voice-only to the description if requested
