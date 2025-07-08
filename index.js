@@ -584,6 +584,15 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     console.log('Requested features:', requestedFeatures);
 
+    // Check if user is requesting voice-only or calling-only plans
+    let isVoiceOnly = queryText.includes('voice only') || 
+                     queryText.includes('voice-only') || 
+                     queryText.includes('calling only') || 
+                     queryText.includes('call only') ||
+                     queryText.includes('calling-only') ||
+                     (queryText.includes('only') && queryText.includes('call') && !queryText.includes('data')) ||
+                     (queryText.includes('only') && queryText.includes('voice') && !queryText.includes('data'));
+
     // Only override if not already specified
     if (!targetDuration && inference.inferredTargetDuration) {
       targetDuration = inference.inferredTargetDuration;
@@ -606,15 +615,6 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       });
       console.log("🔍 Inferred features:", inference.inferredFeatures);
     }
-
-    // Check if user is requesting voice-only or calling-only plans
-    const isVoiceOnly = queryText.includes('voice only') || 
-                       queryText.includes('voice-only') || 
-                       queryText.includes('calling only') || 
-                       queryText.includes('call only') ||
-                       queryText.includes('calling-only') ||
-                       (queryText.includes('only') && queryText.includes('call') && !queryText.includes('data')) ||
-                       (queryText.includes('only') && queryText.includes('voice') && !queryText.includes('data'));
 
     console.log('Voice-only plan requested:', isVoiceOnly);
 
