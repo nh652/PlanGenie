@@ -839,9 +839,21 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
           return `- ${providerText}₹${plan.price}: ${plan.data}${validityText}${benefits ? ' ' + benefits : ''}`;
         }).join('\n');
 
-      // Add note if results were limited
-      if (filtered.length > CONFIG.MAX_PLANS_TO_SHOW) {
-        responseText += `\n\n(Showing ${CONFIG.MAX_PLANS_TO_SHOW} out of ${filtered.length} available plans)`;
+      // Add dynamic pagination message
+      if (filtered.length > DEFAULT_PAGE_SIZE) {
+        const startIndex = offset + 1;
+        const endIndex = Math.min(offset + plansToShow.length, filtered.length);
+        const hasMore = filtered.length > offset + DEFAULT_PAGE_SIZE;
+        
+        if (offset === 0) {
+          responseText += `\n\n(Showing first ${plansToShow.length} of ${filtered.length} available plans)`;
+        } else {
+          responseText += `\n\n(Showing ${startIndex}-${endIndex} of ${filtered.length} available plans)`;
+        }
+        
+        if (hasMore) {
+          responseText += ` - Ask for "more" to see additional plans.`;
+        }
       }
     } else {
       // Add a fallback that shows plans with similar validity if nothing matches exactly
