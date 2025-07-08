@@ -601,7 +601,12 @@ async function processWebhookRequest(req, res, startTime) {
       offset = paginationContext.parameters.offset;
     }
 
-    // Carry forward parameters from pagination context if not already set
+    // Extract operator from query text first (prioritize new requests over pagination context)
+    if (queryText.includes('jio') || queryText.includes('geo')) operator = 'jio';
+    else if (queryText.includes('airtel') || queryText.includes('artel')) operator = 'airtel';
+    else if (queryText.includes('vi') || queryText.includes('vodafone') || queryText.includes('idea')) operator = 'vi';
+    
+    // Only carry forward parameters from pagination context if no new operator detected and not already set
     if (!operator && paginationContext?.parameters?.originalOperator) {
       operator = paginationContext.parameters.originalOperator;
       console.log("Carried forward operator:", operator);
@@ -706,11 +711,6 @@ async function processWebhookRequest(req, res, startTime) {
         operatorCorrectionMessage = `(Assuming you meant ${correctedOperator.toUpperCase()} instead of ${operator.toUpperCase()}) `;
         operator = correctedOperator;
       }
-    } else {
-      // Try to extract operator from query text if not in params
-      if (queryText.includes('jio') || queryText.includes('geo')) operator = 'jio';
-      else if (queryText.includes('airtel') || queryText.includes('artel')) operator = 'airtel';
-      else if (queryText.includes('vi') || queryText.includes('vodafone') || queryText.includes('idea')) operator = 'vi';
     }
 
     console.log('Selected operator:', operator);
