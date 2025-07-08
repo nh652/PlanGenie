@@ -2,6 +2,7 @@ console.log("🚀 Server is starting...");
 import express from 'express';
 import bodyParser from 'body-parser';
 import fetch from 'node-fetch';
+import { getGPTRecommendation } from './gptHelper.js';
 
 // Environment-based configuration
 const CONFIG = {
@@ -1101,6 +1102,17 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
         const voiceText = isVoiceOnly ? ' VOICE-ONLY' : '';
 
         responseText += `No ${planType.toUpperCase()}${voiceText} plans available for ${operator ? operator.toUpperCase() : 'any operator'}. Would you like to check ${planType === 'prepaid' ? 'postpaid' : 'prepaid'} plans instead?`;
+      }
+    }
+
+    // Get GPT recommendation if we have plans to show
+    if (plansToShow.length > 0) {
+      const userPrompt = `User asked: "${queryText}". These are ${plansToShow.length} matching mobile plans. Suggest the best plan among them, explain why, and make it sound friendly and helpful:\n\n` +
+        plansToShow.map(p => `- ₹${p.price}, ${p.data}, ${p.validity}, ${p.benefits}`).join('\n');
+
+      const gptResponse = await getGPTRecommendation(userPrompt);
+      if (gptResponse) {
+        responseText = gptResponse;
       }
     }
 
