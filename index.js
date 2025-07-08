@@ -540,7 +540,43 @@ async function processWebhookRequest(req, res, startTime) {
     }
 
     // Handle conversational queries first with GPT (with timeout)
-    const conversationalQueries = ['hi', 'hello', 'good morning', 'good afternoon', 'good evening', 'how are you', 'thank you', 'bye', 'thanks', 'mate'];
+    const conversationalQueries = [
+      // Basic greetings
+      'hi', 'hello', 'hey', 'hiya', 'heya', 'yo',
+      
+      // Time-based greetings
+      'good morning', 'good afternoon', 'good evening', 'good night',
+      'morning', 'afternoon', 'evening',
+      
+      // Casual greetings
+      'what\'s up', 'whats up', 'wassup', 'sup', 'howdy', 'hola',
+      'namaste', 'namaskar', 'namaskaram',
+      
+      // How are you variations
+      'how are you', 'how r u', 'how are u', 'how\'s it going', 'hows it going',
+      'how are things', 'how\'s everything', 'hows everything', 'what\'s good',
+      'how you doing', 'how are you doing', 'how\'s life', 'hows life',
+      
+      // Thank you variations
+      'thank you', 'thanks', 'thank u', 'thx', 'ty', 'appreciate it',
+      'much appreciated', 'thanks a lot', 'thank you so much',
+      'grateful', 'cheers', 'ta',
+      
+      // Goodbye variations
+      'bye', 'goodbye', 'good bye', 'see you', 'see ya', 'later',
+      'catch you later', 'talk to you later', 'ttyl', 'take care',
+      'have a good day', 'have a great day', 'peace', 'ciao',
+      
+      // Casual terms
+      'mate', 'buddy', 'pal', 'friend', 'bro', 'dude', 'man',
+      
+      // Question starters
+      'can you help', 'help me', 'i need help', 'assist me',
+      'what can you do', 'who are you', 'what are you',
+      
+      // Polite expressions
+      'please', 'excuse me', 'sorry', 'pardon me'
+    ];
     const normalizedQuery = queryText.toLowerCase().trim();
 
     if (conversationalQueries.some(q => normalizedQuery.includes(q))) {
