@@ -674,6 +674,16 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     console.log('Extracted budget:', budget);
 
+    // Pagination logic - initialize offset early
+    let offset = 0;
+    const DEFAULT_PAGE_SIZE = CONFIG.MAX_PLANS_TO_SHOW;
+
+    if (isShowMoreIntent && paginationContext?.parameters?.offset) {
+      offset = paginationContext.parameters.offset;
+    }
+
+    console.log("OFFSET USED:", offset);
+
     // Build a cache key using key parameters
     const cacheKey = JSON.stringify({
       queryText,
@@ -926,15 +936,7 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       filtered = internationalPlans;
     }
 
-    // Pagination logic
-    let offset = 0;
-    const DEFAULT_PAGE_SIZE = CONFIG.MAX_PLANS_TO_SHOW;
-
-    if (isShowMoreIntent && paginationContext?.parameters?.offset) {
-      offset = paginationContext.parameters.offset;
-    }
-
-    console.log("OFFSET USED:", offset);
+    
     
     // Slice plans based on offset
     const plansToShow = filtered.slice(offset, offset + DEFAULT_PAGE_SIZE);
