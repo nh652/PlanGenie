@@ -543,36 +543,15 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       minDailyData = parseFloat(dailyDataMatch[1]);
     }
 
-    // Extract duration directly from query text first
+    // Initialize all main variables first
     let targetDuration = null;
-
-    // First check for month expressions
-    const monthMap = CONFIG.MONTH_MAPPINGS;
-
-    // Check for month-based expressions first
-    for (const [monthExpr, days] of Object.entries(monthMap)) {
-      if (queryText.includes(monthExpr)) {
-        targetDuration = days;
-        console.log(`Mapped "${monthExpr}" to ${days} days validity`);
-        break;
-      }
-    }
-
-    // If no month expression found, try direct days extraction
-    if (!targetDuration) {
-      const daysMatch = queryText.match(/(\d+)\s*days?/i);
-      if (daysMatch) {
-        targetDuration = parseInt(daysMatch[1]);
-        console.log('Duration directly extracted from query text:', targetDuration);
-      }
-    }
-
-    // Operator extraction with spelling correction
     let operator = params.operator?.toLowerCase();
+    let planType = params.plan_type?.toLowerCase();
+    let budget = null;
     let correctedOperator = null;
     let operatorCorrectionMessage = '';
 
-    // Pagination logic - initialize offset first before any operator logic
+    // Pagination logic - initialize offset first
     let offset = 0;
     const DEFAULT_PAGE_SIZE = CONFIG.MAX_PLANS_TO_SHOW;
 
@@ -580,9 +559,7 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       offset = paginationContext.parameters.offset;
     }
 
-    // For show more intent, preserve the original operator from pagination context
-    // BUT override if user explicitly mentions a different operator in the query
-    // Add fallback to carry forward parameters from pagination context
+    // Carry forward parameters from pagination context if not already set
     if (!operator && paginationContext?.parameters?.originalOperator) {
       operator = paginationContext.parameters.originalOperator;
       console.log("Carried forward operator:", operator);
@@ -601,6 +578,27 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     if (!targetDuration && paginationContext?.parameters?.originalDuration) {
       targetDuration = paginationContext.parameters.originalDuration;
       console.log("Carried forward duration:", targetDuration);
+    }
+
+    // Extract duration directly from query text first
+    const monthMap = CONFIG.MONTH_MAPPINGS;
+
+    // Check for month-based expressions first
+    for (const [monthExpr, days] of Object.entries(monthMap)) {
+      if (queryText.includes(monthExpr)) {
+        targetDuration = days;
+        console.log(`Mapped "${monthExpr}" to ${days} days validity`);
+        break;
+      }
+    }
+
+    // If no month expression found, try direct days extraction
+    if (!targetDuration) {
+      const daysMatch = queryText.match(/(\d+)\s*days?/i);
+      if (daysMatch) {
+        targetDuration = parseInt(daysMatch[1]);
+        console.log('Duration directly extracted from query text:', targetDuration);
+      }
     }
 
     // Handle follow-up intent adjustments
@@ -696,9 +694,7 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       operator = null; // Reset to show all operators
     }
 
-    // Plan type detection (prepaid/postpaid)
-    let planType = params.plan_type?.toLowerCase();
-
+    // Plan type detection (prepaid/postpaid) - planType already declared above
     // For show more intent, preserve the original plan type from pagination context
     if (isShowMoreIntent && paginationContext?.parameters?.originalPlanType) {
       planType = paginationContext.parameters.originalPlanType;
@@ -799,28 +795,29 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       console.log('Processed target duration from params:', targetDuration);
     }
 
-    // Fix budget extraction
-    let budget = null;
-    // Try to extract budget from parameters
-    if (params.budget) {
-      if (typeof params.budget === 'number') {
-        budget = params.budget;
-      } else if (typeof params.budget === 'object' && params.budget.amount) {
-        budget = params.budget.amount;
-      } else if (typeof params.budget === 'string') {
-        // Try to extract a number from the string
-        const budgetMatch = params.budget.match(/(\d+)/);
-        if (budgetMatch) budget = parseInt(budgetMatch[1]);
-      }
-    }
-
-    // If budget not found in parameters, try to extract from query text
+    // Extract budget from parameters if not already set from pagination context
     if (!budget) {
-      const budgetMatch = queryText.match(/under\s+(?:rs\.?|₹)?\s*(\d+)/i) || 
-                          queryText.match(/less\s+than\s+(?:rs\.?|₹)?\s*(\d+)/i) ||
-                          queryText.match(/budget\s+of\s+(?:rs\.?|₹)?\s*(\d+)/i);
-      if (budgetMatch) {
-        budget = parseInt(budgetMatch[1]);
+      // Try to extract budget from parameters
+      if (params.budget) {
+        if (typeof params.budget === 'number') {
+          budget = params.budget;
+        } else if (typeof params.budget === 'object' && params.budget.amount) {
+          budget = params.budget.amount;
+        } else if (typeof params.budget === 'string') {
+          // Try to extract a number from the string
+          const budgetMatch = params.budget.match(/(\d+)/);
+          if (budgetMatch) budget = parseInt(budgetMatch[1]);
+        }
+      }
+
+      // If budget not found in parameters, try to extract from query text
+      if (!budget) {
+        const budgetMatch = queryText.match(/under\s+(?:rs\.?|₹)?\s*(\d+)/i) || 
+                            queryText.match(/less\s+than\s+(?:rs\.?|₹)?\s*(\d+)/i) ||
+                            queryText.match(/budget\s+of\s+(?:rs\.?|₹)?\s*(\d+)/i);
+        if (budgetMatch) {
+          budget = parseInt(budgetMatch[1]);
+        }
       }
     }
 
