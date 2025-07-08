@@ -9,7 +9,7 @@ const openai = new OpenAI({
 export async function getGPTRecommendation(prompt) {
   try {
     const chat = await openai.chat.completions.create({
-      model: 'gpt-4', // you can also use 'gpt-3.5-turbo'
+      model: 'gpt-3.5-turbo', // you can also use 'gpt-4'
       messages: [
         { role: 'system', content: 'You are a helpful telecom assistant. Respond in a natural, friendly tone. Always justify your suggestions.' },
         { role: 'user', content: prompt }
