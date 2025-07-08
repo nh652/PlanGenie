@@ -519,9 +519,23 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     let operatorCorrectionMessage = '';
 
     // For show more intent, preserve the original operator from pagination context
+    // BUT override if user explicitly mentions a different operator in the query
     if (isShowMoreIntent && paginationContext?.parameters?.originalOperator) {
-      operator = paginationContext.parameters.originalOperator;
-      console.log("Restored operator from pagination context:", operator);
+      // Check if user is requesting a different operator in the query
+      let newOperatorFromQuery = null;
+      if (queryText.includes('jio') || queryText.includes('geo')) newOperatorFromQuery = 'jio';
+      else if (queryText.includes('airtel') || queryText.includes('artel')) newOperatorFromQuery = 'airtel';
+      else if (queryText.includes('vi') || queryText.includes('vodafone') || queryText.includes('idea')) newOperatorFromQuery = 'vi';
+      
+      if (newOperatorFromQuery && newOperatorFromQuery !== paginationContext.parameters.originalOperator) {
+        operator = newOperatorFromQuery;
+        console.log("Override pagination context - new operator from query:", operator);
+        // Reset offset since we're starting a new search
+        offset = 0;
+      } else {
+        operator = paginationContext.parameters.originalOperator;
+        console.log("Restored operator from pagination context:", operator);
+      }
     } else if (operator) {
       correctedOperator = correctOperatorName(operator);
       if (correctedOperator && correctedOperator !== operator) {
