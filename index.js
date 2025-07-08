@@ -518,6 +518,14 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     let correctedOperator = null;
     let operatorCorrectionMessage = '';
 
+    // Pagination logic - initialize offset first before any operator logic
+    let offset = 0;
+    const DEFAULT_PAGE_SIZE = CONFIG.MAX_PLANS_TO_SHOW;
+
+    if (isShowMoreIntent && paginationContext?.parameters?.offset) {
+      offset = paginationContext.parameters.offset;
+    }
+
     // For show more intent, preserve the original operator from pagination context
     // BUT override if user explicitly mentions a different operator in the query
     if (isShowMoreIntent && paginationContext?.parameters?.originalOperator) {
@@ -687,14 +695,6 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     }
 
     console.log('Extracted budget:', budget);
-
-    // Pagination logic - initialize offset early
-    let offset = 0;
-    const DEFAULT_PAGE_SIZE = CONFIG.MAX_PLANS_TO_SHOW;
-
-    if (isShowMoreIntent && paginationContext?.parameters?.offset) {
-      offset = paginationContext.parameters.offset;
-    }
 
     console.log("OFFSET USED:", offset);
 
