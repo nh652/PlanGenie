@@ -424,7 +424,11 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     let correctedOperator = null;
     let operatorCorrectionMessage = '';
 
-    if (operator) {
+    // For show more intent, preserve the original operator from pagination context
+    if (isShowMoreIntent && paginationContext?.parameters?.originalOperator) {
+      operator = paginationContext.parameters.originalOperator;
+      console.log("Restored operator from pagination context:", operator);
+    } else if (operator) {
       correctedOperator = correctOperatorName(operator);
       if (correctedOperator && correctedOperator !== operator) {
         operatorCorrectionMessage = `(Assuming you meant ${correctedOperator.toUpperCase()} instead of ${operator.toUpperCase()}) `;
@@ -448,7 +452,12 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     // Plan type detection (prepaid/postpaid)
     let planType = params.plan_type?.toLowerCase();
-    if (!planType) {
+    
+    // For show more intent, preserve the original plan type from pagination context
+    if (isShowMoreIntent && paginationContext?.parameters?.originalPlanType) {
+      planType = paginationContext.parameters.originalPlanType;
+      console.log("Restored plan type from pagination context:", planType);
+    } else if (!planType) {
       if (queryText.includes('prepaid')) {
         planType = 'prepaid';
       } else if (queryText.includes('postpaid')) {
@@ -917,7 +926,11 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
         name: `${session}/contexts/pagination`,
         lifespanCount: 5,
         parameters: {
-          offset: offset + DEFAULT_PAGE_SIZE
+          offset: offset + DEFAULT_PAGE_SIZE,
+          originalOperator: operator,
+          originalPlanType: planType,
+          originalBudget: budget,
+          originalDuration: targetDuration
         }
       });
     }
