@@ -559,6 +559,20 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     console.log('Selected operator:', operator);
 
+    // Handle "skip filter" queries - allow users to bypass operator/budget requirements
+    const skipFilters = queryText.includes('show all plans') || 
+                       queryText.includes('any operator') || 
+                       queryText.includes('no budget') ||
+                       queryText.includes('skip filters') ||
+                       queryText.includes('view everything');
+
+    // Fallback: If both operator and budget are missing and it's not a show more intent or skip filter request
+    if (!operator && !budget && !isShowMoreIntent && !skipFilters) {
+      return res.json({
+        fulfillmentText: `To help you better, please tell me your preferred operator (like Jio, Airtel, or Vi) and your budget (e.g., under ₹300).\n\nOr just say "show all plans" to skip filters and view everything.`
+      });
+    }
+
     // Check if requested operator is available
     let missingOperatorMessage = '';
     if (operator && !AVAILABLE_OPERATORS.includes(operator)) {
