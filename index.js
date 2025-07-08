@@ -1158,21 +1158,21 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     // Get GPT recommendation if we have plans to show
     if (plansToShow.length > 0) {
+      // Create summarized plan data for GPT
+      const summary = plansToShow.map(plan => {
+        const validityDays = parseValidity(plan.validity) || 28;
+        const benefits = [plan.benefits, plan.additional_benefits].filter(Boolean).join(', ');
+        return `₹${plan.price} - ${plan.data}, ${validityDays} days${benefits ? ', ' + benefits : ''}`;
+      }).join('\n');
+
+      // Generate conversational prompt
       const gptPrompt = `
-User is searching for ${operator ? operator.toUpperCase() : "ANY"} ${planType.toUpperCase()} plans.
-Their preferences:
-- Budget: ${budget || "Not specified"}
-- Duration: ${targetDuration ? `${targetDuration} days` : "Any"}
-- Voice only: ${isVoiceOnly ? "Yes" : "No"}
-- Special features: ${requestedFeatures.length > 0 ? requestedFeatures.join(', ') : "None"}
+User is looking for ${operator || 'any'} ${planType} plans.
+Top filtered plans are:
+${summary}
 
-Here are the filtered plans:
-
-${plansToShow.map(p => {
-  const validity = p.validity ? `(${p.validity})` : '';
-  const benefits = [p.benefits, p.additional_benefits].filter(Boolean).join(', ');
-  return `• ₹${p.price}: ${p.data} ${validity}${benefits ? ' - ' + benefits : ''}`;
-}).join('\n')}
+Suggest 1-2 best options based on overall value. Recommend like a smart telecom friend.
+Avoid listing everything — pick top plans only and explain why.
 `;
 
       let gptResponse = await getGPTRecommendation(gptPrompt);
@@ -1182,7 +1182,8 @@ ${plansToShow.map(p => {
         gptResponse = `Here are some options that might suit you well. If you're looking for something more specific like OTT benefits or a budget range, just ask! 😊`;
       }
 
-      responseText = gptResponse;
+      // Combine GPT recommendation with plan list
+      responseText = gptResponse + '\n\n' + responseText;
     } else {
       // Handle case when no plans found and GPT might fail
       const gptPrompt = `User searched for ${operator ? operator.toUpperCase() : "ANY"} ${planType.toUpperCase()} plans but none were found matching their criteria.`;
