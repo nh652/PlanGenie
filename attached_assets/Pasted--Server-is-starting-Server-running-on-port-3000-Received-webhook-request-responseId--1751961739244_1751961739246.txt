@@ -1,0 +1,282 @@
+🚀 Server is starting...
+Server running on port 3000
+Received webhook request: {
+  "responseId": "e7fd824f-3ed1-45ed-8ff1-8ecbb9cc656f-60174e1f",
+  "queryResult": {
+    "queryText": "suggest airtel plans",
+    "parameters": {
+      "number": [],
+      "duration": ""
+    },
+    "allRequiredParamsPresent": true,
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 8,
+          "originalOperator": "jio",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": ""
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0,
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": ""
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/41441b4c-0455-4538-8663-0e49d48d2952",
+      "displayName": "Plan Suggestion - Prepaid"
+    },
+    "intentDetectionConfidence": 0.543856,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {"number":[],"duration":""}
+Query text: suggest airtel plans
+⏱️ Processing time: 2ms
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 8,
+    originalOperator: 'jio',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: ''
+  }
+}
+IS SHOW MORE INTENT: false
+IS FOLLOW UP INTENT: false
+IS FEEDBACK INTENT: false
+Carried forward operator: jio
+Carried forward planType: prepaid
+Selected operator: jio
+Selected plan type: prepaid
+Requested features: []
+Voice-only plan requested: false
+Extracted budget: null
+OFFSET USED: 0
+Successfully fetched fresh plan data
+Found 19 prepaid plans for jio
+Sample plan data:
+[{"price":189,"data":"2GB","validity":28,"benefits":"Unlimited voice & SMS","type":"prepaid","provider":"jio"},{"price":249,"data":"1GB/day","validity":28,"benefits":"Unlimited voice & SMS","type":"prepaid","provider":"jio"}]
+Plan: ₹189, Validity: 28, Parsed days: 28
+Plan: ₹249, Validity: 28, Parsed days: 28
+Plan: ₹299, Validity: 28, Parsed days: 28
+Plan: ₹349, Validity: 28, Parsed days: 28
+Plan: ₹399, Validity: 28, Parsed days: 28
+Plan: ₹449, Validity: 28, Parsed days: 28
+Plan: ₹579, Validity: 56, Parsed days: 56
+Plan: ₹629, Validity: 56, Parsed days: 56
+Plan: ₹479, Validity: 84, Parsed days: 84
+Plan: ₹799, Validity: 84, Parsed days: 84
+Plan: ₹859, Validity: 84, Parsed days: 84
+Plan: ₹1199, Validity: 84, Parsed days: 84
+Plan: ₹1899, Validity: 336, Parsed days: 336
+Plan: ₹3599, Validity: 365, Parsed days: 365
+Plan: ₹448, Validity: 84, Parsed days: 84
+Plan: ₹1748, Validity: 336, Parsed days: 336
+Plan: ₹19, Validity: base plan, Parsed days: null
+Plan: ₹29, Validity: base plan, Parsed days: null
+Plan: ₹69, Validity: base plan, Parsed days: null
+Filtered to 19 matching plans
+PLANS RETURNED: 8
+⏱️ Starting GPT recommendation at 110ms
+⏱️ GPT recommendation completed at 3536ms
+Response: Hey there! Looks like you're checking out Jio's prepaid plans - good choice. Based on the options you've shared, I'd recommend going with the ₹299 plan.
+
+Here's why it stands out:
+• 1.5GB daily data - that's a solid chunk of high-speed internet every day
+• Unlimited voice calls and SMS - you can stay connected without worrying about extra charges
+• 28-day validity - decent length so you don't have to recharge too often
+
+For the extra ₹50 over the ₹249 plan, I think the 1.5GB daily data is worth it, especially if you're a heavy internet
+
+Here are JIO PREPAID plans:
+
+- ₹189: 2GB (28 days) Unlimited voice & SMS
+- ₹249: 1GB/day (28 days) Unlimited voice & SMS
+- ₹299: 1.5GB/day (28 days) Unlimited voice & SMS
+- ₹349: 2GB/day (28 days) Unlimited voice & SMS, Unlimited 5G data
+- ₹399: 2.5GB/day (28 days) Unlimited voice & SMS, Unlimited 5G data
+- ₹449: 3GB/day (28 days) Unlimited voice & SMS, Unlimited 5G data
+- ₹579: 1.5GB/day (56 days) Unlimited voice & SMS
+- ₹629: 2GB/day (56 days) Unlimited voice & SMS, Unlimited 5G data
+
+(Showing first 8 of 19 available plans) - Ask for "more" to see additional plans.
+
+Was this helpful? 👍 or 👎
+Metadata: {
+  timestamp: '2025-07-08T08:00:20.725Z',
+  planCount: 8,
+  pageOffset: 0,
+  totalAvailable: 19,
+  operator: 'jio',
+  planType: 'prepaid',
+  cached: true
+}
+⏱️ Total processing time: 3537ms
+💾 Response saved to smart cache
+Received webhook request: {
+  "responseId": "c5ab0be0-e533-42ac-b384-d5fa50de9f6b-60174e1f",
+  "queryResult": {
+    "queryText": "suggest vi plans",
+    "parameters": {
+      "number": [],
+      "duration": ""
+    },
+    "allRequiredParamsPresent": true,
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 8,
+          "originalOperator": "jio",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": "",
+          "lastSummary": "₹189 - 2GB, 28 days\n₹249 - 1GB/day, 28 days\n₹299 - 1.5GB/day, 28 days"
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0,
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": ""
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/41441b4c-0455-4538-8663-0e49d48d2952",
+      "displayName": "Plan Suggestion - Prepaid"
+    },
+    "intentDetectionConfidence": 0.51250815,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {"number":[],"duration":""}
+Query text: suggest vi plans
+⏱️ Processing time: 0ms
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 8,
+    originalOperator: 'jio',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: '',
+    lastSummary: '₹189 - 2GB, 28 days\n₹249 - 1GB/day, 28 days\n₹299 - 1.5GB/day, 28 days'
+  }
+}
+IS SHOW MORE INTENT: false
+IS FOLLOW UP INTENT: false
+IS FEEDBACK INTENT: false
+Carried forward operator: jio
+Carried forward planType: prepaid
+Selected operator: jio
+Selected plan type: prepaid
+Requested features: []
+Voice-only plan requested: false
+Extracted budget: null
+OFFSET USED: 0
+Found 19 prepaid plans for jio
+Sample plan data:
+[{"price":189,"data":"2GB","validity":28,"benefits":"Unlimited voice & SMS","type":"prepaid","provider":"jio"},{"price":249,"data":"1GB/day","validity":28,"benefits":"Unlimited voice & SMS","type":"prepaid","provider":"jio"}]
+Plan: ₹189, Validity: 28, Parsed days: 28
+Plan: ₹249, Validity: 28, Parsed days: 28
+Plan: ₹299, Validity: 28, Parsed days: 28
+Plan: ₹349, Validity: 28, Parsed days: 28
+Plan: ₹399, Validity: 28, Parsed days: 28
+Plan: ₹449, Validity: 28, Parsed days: 28
+Plan: ₹579, Validity: 56, Parsed days: 56
+Plan: ₹629, Validity: 56, Parsed days: 56
+Plan: ₹479, Validity: 84, Parsed days: 84
+Plan: ₹799, Validity: 84, Parsed days: 84
+Plan: ₹859, Validity: 84, Parsed days: 84
+Plan: ₹1199, Validity: 84, Parsed days: 84
+Plan: ₹1899, Validity: 336, Parsed days: 336
+Plan: ₹3599, Validity: 365, Parsed days: 365
+Plan: ₹448, Validity: 84, Parsed days: 84
+Plan: ₹1748, Validity: 336, Parsed days: 336
+Plan: ₹19, Validity: base plan, Parsed days: null
+Plan: ₹29, Validity: base plan, Parsed days: null
+Plan: ₹69, Validity: base plan, Parsed days: null
+Filtered to 19 matching plans
+PLANS RETURNED: 8
+⏱️ Starting GPT recommendation at 2ms
+⏱️ GPT recommendation completed at 3069ms
+Response: Hey there! Looks like you're considering some Jio prepaid plans. Let me break down a couple top options for you:
+
+👉 The ₹299 plan stands out as the best value here. For just 50 bucks more than the ₹249 plan, you're getting 1.5GB of daily data instead of 1GB. That adds up to a solid 42GB total over the 28-day validity period. Plus, you still get unlimited voice and SMS.
+
+The ₹189 plan is a decent budget option, but 2GB total data is a bit limiting these days, especially if you're a heavy user.
+
+So based on the
+
+Here are JIO PREPAID plans:
+
+- ₹189: 2GB (28 days) Unlimited voice & SMS
+- ₹249: 1GB/day (28 days) Unlimited voice & SMS
+- ₹299: 1.5GB/day (28 days) Unlimited voice & SMS
+- ₹349: 2GB/day (28 days) Unlimited voice & SMS, Unlimited 5G data
+- ₹399: 2.5GB/day (28 days) Unlimited voice & SMS, Unlimited 5G data
+- ₹449: 3GB/day (28 days) Unlimited voice & SMS, Unlimited 5G data
+- ₹579: 1.5GB/day (56 days) Unlimited voice & SMS
+- ₹629: 2GB/day (56 days) Unlimited voice & SMS, Unlimited 5G data
+
+(Showing first 8 of 19 available plans) - Ask for "more" to see additional plans.
+
+Was this helpful? 👍 or 👎
+Metadata: {
+  timestamp: '2025-07-08T08:00:51.018Z',
+  planCount: 8,
+  pageOffset: 0,
+  totalAvailable: 19,
+  operator: 'jio',
+  planType: 'prepaid',
+  cached: true
+}
+⏱️ Total processing time: 3069ms
+💾 Response saved to smart cache
