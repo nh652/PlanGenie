@@ -3,7 +3,8 @@
 import { OpenAI } from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // set this in Secrets tab
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: 'https://openrouter.ai/api/v1', // OpenRouter's base URL
 });
 
 export async function getGPTRecommendation(prompt) {
