@@ -596,11 +596,15 @@ async function processWebhookRequest(req, res, startTime) {
 
         const gptReply = await Promise.race([
           gptPromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('GPT timeout')), 1800))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('GPT timeout')), 1500))
         ]);
 
         console.log(`⏱️ GPT response received at ${elapsed()}ms`);
-        return res.json({ fulfillmentText: gptReply.choices[0].message.content });
+        if (gptReply && gptReply.choices && gptReply.choices[0] && gptReply.choices[0].message) {
+          return res.json({ fulfillmentText: gptReply.choices[0].message.content });
+        } else {
+          throw new Error('Invalid GPT response structure');
+        }
       } catch (error) {
         console.error('GPT API error for conversational query:', error.message);
         
@@ -625,7 +629,7 @@ async function processWebhookRequest(req, res, startTime) {
           fallbackResponse = "Goodbye! Feel free to come back anytime you need help with mobile plans!";
         }
         
-        console.log(`🔧 Using fallback response: "${fallbackResponse}"`);
+        console.log(`🔧 Using fallback response for "${queryText}": "${fallbackResponse}"`);
         return res.json({ fulfillmentText: fallbackResponse });
       }
     }
