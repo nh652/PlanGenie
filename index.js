@@ -381,6 +381,41 @@ function hasFeature(plan, feature) {
   return searchText.includes(feature.toLowerCase());
 }
 
+// Infer user intent from natural language patterns
+function inferUserIntent(queryText) {
+  const inferences = {
+    inferredFeatures: [],
+    inferredMinDailyData: null,
+    inferredVoiceOnly: false,
+    inferredTargetDuration: null
+  };
+
+  const text = queryText.toLowerCase();
+
+  if (text.includes('stream') || text.includes('binge') || text.includes('watch')) {
+    inferences.inferredFeatures.push('ott');
+    inferences.inferredMinDailyData = 2;
+  }
+
+  if (text.includes('long term') || text.includes('yearly') || text.includes('annual')) {
+    inferences.inferredTargetDuration = 365;
+  }
+
+  if (text.includes('heavy user') || text.includes('power user')) {
+    inferences.inferredMinDailyData = 2.5;
+  }
+
+  if (text.includes('just calls') || text.includes('only calls') || text.includes('voice only')) {
+    inferences.inferredVoiceOnly = true;
+  }
+
+  if (text.includes('short term') || text.includes('weekend only')) {
+    inferences.inferredTargetDuration = 1; // fallback to 1-day low cost plans
+  }
+
+  return inferences;
+}
+
 // Input validation middleware
 function validateWebhookRequest(req, res, next) {
   if (!req.body || !req.body.queryResult) {
@@ -412,6 +447,9 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     console.log('Parameters:', JSON.stringify(params));
     console.log('Query text:', queryText);
+
+    // Infer intent if user hasn't been explicit
+    const inference = inferUserIntent(queryText);
 
     // Extract session and pagination context from input contexts
     const session = req.body.session || '';
@@ -545,6 +583,29 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     }
 
     console.log('Requested features:', requestedFeatures);
+
+    // Only override if not already specified
+    if (!targetDuration && inference.inferredTargetDuration) {
+      targetDuration = inference.inferredTargetDuration;
+      console.log("🔍 Inferred duration:", targetDuration);
+    }
+
+    if (!isVoiceOnly && inference.inferredVoiceOnly) {
+      isVoiceOnly = true;
+      console.log("🔍 Inferred voice-only requirement");
+    }
+
+    if (!minDailyData && inference.inferredMinDailyData) {
+      minDailyData = inference.inferredMinDailyData;
+      console.log("🔍 Inferred min daily data:", minDailyData);
+    }
+
+    if (inference.inferredFeatures.length > 0) {
+      inference.inferredFeatures.forEach(f => {
+        if (!requestedFeatures.includes(f)) requestedFeatures.push(f);
+      });
+      console.log("🔍 Inferred features:", inference.inferredFeatures);
+    }
 
     // Check if user is requesting voice-only or calling-only plans
     const isVoiceOnly = queryText.includes('voice only') || 
