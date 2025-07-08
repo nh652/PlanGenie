@@ -559,6 +559,27 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     // For show more intent, preserve the original operator from pagination context
     // BUT override if user explicitly mentions a different operator in the query
+    // Add fallback to carry forward parameters from pagination context
+    if (!operator && paginationContext?.parameters?.originalOperator) {
+      operator = paginationContext.parameters.originalOperator;
+      console.log("Carried forward operator:", operator);
+    }
+
+    if (!planType && paginationContext?.parameters?.originalPlanType) {
+      planType = paginationContext.parameters.originalPlanType;
+      console.log("Carried forward planType:", planType);
+    }
+
+    if (!budget && paginationContext?.parameters?.originalBudget) {
+      budget = paginationContext.parameters.originalBudget;
+      console.log("Carried forward budget:", budget);
+    }
+
+    if (!targetDuration && paginationContext?.parameters?.originalDuration) {
+      targetDuration = paginationContext.parameters.originalDuration;
+      console.log("Carried forward duration:", targetDuration);
+    }
+
     if (isShowMoreIntent && paginationContext?.parameters?.originalOperator) {
       // Check if user is requesting a different operator in the query
       let newOperatorFromQuery = null;
