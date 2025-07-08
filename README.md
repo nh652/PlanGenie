@@ -51,34 +51,40 @@ PORT=3000
 node index.js
 ```
 🤖 Integrate with Dialogflow
+
 Create a Dialogflow ES agent
+
 Enable webhook in the intent (e.g. "Plan Suggestion")
+
 Use your deployed webhook URL (Replit / Render / Railway)
+
 Enable parameters: operator, budget, duration, etc.
 
 
 🧠 GPT Integration (Optional)
+
 Enable smarter replies using OpenAI GPT (gpt-3.5-turbo or gpt-4)
+
 Add your API key in .env file
+
 If quota exceeds, it gracefully disables GPT fallback
 
 
 📂 Project Structure
-bash
-Copy
-Edit
+```bash
+
 ├── index.js              # Main Express server
 ├── gptHelper.js          # GPT response logic
 ├── .env                  # Environment variables (not committed)
 ├── /public               # Optional static assets
 ├── /data                 # Telecom JSON data (remote or local)
 └── README.md
+```
 📦 API Preview
-http
-Copy
-Edit
+```bash
 GET    /health
 POST   /webhook
+```
 🙋‍♂️ Author
 👨‍💻 Nikhil Harwani
 🔗 GitHub Profile
