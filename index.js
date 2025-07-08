@@ -458,16 +458,50 @@ function validateWebhookRequest(req, res, next) {
   next();
 }
 
-// Main webhook endpoint
+// Main webhook endpoint with timeout protection
 app.post('/webhook', validateWebhookRequest, async (req, res) => {
+  const startTime = Date.now();
+  const WEBHOOK_TIMEOUT = 4500; // 4.5 seconds to stay under Dialogflow's 5s limit
+  
+  // Set a timeout for the entire request
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Webhook timeout')), WEBHOOK_TIMEOUT);
+  });
+
   try {
     console.log('Received webhook request:', JSON.stringify(req.body, null, 2));
+    
+    // Race between main logic and timeout
+    const result = await Promise.race([
+      processWebhookRequest(req, res, startTime),
+      timeoutPromise
+    ]);
+    
+    return result;
+  } catch (error) {
+    if (error.message === 'Webhook timeout') {
+      console.error('⏰ Webhook timeout exceeded');
+      return res.json({
+        fulfillmentText: "I'm processing your request. Please give me a moment and try again."
+      });
+    }
+    throw error;
+  }
+});
+
+// Main processing function
+async function processWebhookRequest(req, res, startTime) {
+  try {
     const { queryResult } = req.body;
     const params = queryResult.parameters || {};
     const queryText = (queryResult.queryText || '').toLowerCase();
 
     console.log('Parameters:', JSON.stringify(params));
     console.log('Query text:', queryText);
+    
+    // Performance monitoring
+    const elapsed = () => Date.now() - startTime;
+    console.log(`⏱️ Processing time: ${elapsed()}ms`);
 
     // Infer intent if user hasn't been explicit
     const inference = inferUserIntent(queryText);
@@ -505,25 +539,33 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       });
     }
 
-    // Handle conversational queries first with GPT
+    // Handle conversational queries first with GPT (with timeout)
     const conversationalQueries = ['hi', 'hello', 'good morning', 'how are you', 'thank you', 'bye', 'thanks'];
     const normalizedQuery = queryText.toLowerCase().trim();
 
     if (conversationalQueries.some(q => normalizedQuery.includes(q))) {
       try {
-        const gptReply = await openai.chat.completions.create({
+        console.log(`⏱️ Starting GPT call at ${elapsed()}ms`);
+        const gptPromise = openai.chat.completions.create({
           model: "gpt-3.5-turbo",
           messages: [
             { role: "system", content: "You are a friendly mobile plan assistant. Keep responses brief and warm. Always offer to help with mobile plans." },
             { role: "user", content: queryText }
           ],
-          max_tokens: 60,
+          max_tokens: 30, // Reduced for faster response
+          timeout: 2000 // 2 second timeout
         });
 
+        const gptReply = await Promise.race([
+          gptPromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('GPT timeout')), 2000))
+        ]);
+
+        console.log(`⏱️ GPT response received at ${elapsed()}ms`);
         return res.json({ fulfillmentText: gptReply.choices[0].message.content });
       } catch (error) {
         console.error('GPT API error for conversational query:', error);
-        // Fallback to a simple response if GPT fails
+        // Fast fallback
         return res.json({ fulfillmentText: "Hello! I'm here to help you find the perfect mobile plan. What are you looking for?" });
       }
     }
@@ -1223,60 +1265,45 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       }
     }
 
-    // Get GPT recommendation if we have plans to show
-    if (plansToShow.length > 0) {
+    // Get GPT recommendation if we have plans to show and time allows
+    if (plansToShow.length > 0 && elapsed() < 3500) { // Only if under 3.5 seconds
+      console.log(`⏱️ Starting GPT recommendation at ${elapsed()}ms`);
+      
       // Create summarized plan data for GPT
-      const summary = plansToShow.map(plan => {
+      const summary = plansToShow.slice(0, 3).map(plan => { // Limit to 3 plans for faster processing
         const validityDays = parseValidity(plan.validity) || 28;
         const benefits = [plan.benefits, plan.additional_benefits].filter(Boolean).join(', ');
         return `₹${plan.price} - ${plan.data}, ${validityDays} days${benefits ? ', ' + benefits : ''}`;
       }).join('\n');
 
-      // Generate conversational prompt based on intent type
-      let gptPrompt;
-      
-      if (isFollowUpIntent && paginationContext) {
-        // Follow-up prompt for refined searches
-        gptPrompt = `
-User had earlier searched ${planType} plans for ${operator || 'any operator'}. Now they asked: "${queryText}"
-These are the refined options based on their request:
+      // Shorter, focused prompts
+      let gptPrompt = `User wants ${operator || 'any'} ${planType} plans. Top options:\n${summary}\n\nRecommend 1 best option briefly.`;
 
-${summary}
+      try {
+        const gptTimeout = Math.max(1000, 4000 - elapsed()); // Dynamic timeout based on remaining time
+        let gptResponse = await Promise.race([
+          getGPTRecommendation(gptPrompt),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('GPT timeout')), gptTimeout))
+        ]);
 
-Suggest 1-2 better/different options based on their new concern. Respond naturally and mention what changed.
-Keep it conversational like: "Ah, you're looking for 2-month options? Here are better picks..."
-`;
-      } else {
-        // Regular prompt for initial searches
-        gptPrompt = `
-User is looking for ${operator || 'any'} ${planType} plans.
-Top filtered plans are:
-${summary}
+        if (!gptResponse) {
+          gptResponse = `Here are some great options for you! 😊`;
+        }
 
-Suggest 1-2 best options based on overall value. Recommend like a smart telecom friend.
-Avoid listing everything — pick top plans only and explain why.
-`;
+        console.log(`⏱️ GPT recommendation completed at ${elapsed()}ms`);
+        responseText = gptResponse + '\n\n' + responseText;
+      } catch (error) {
+        console.log(`⏱️ GPT timed out or failed at ${elapsed()}ms, using fallback`);
+        // Fast fallback without GPT
+        responseText = `Here are the best plans for you:\n\n` + responseText;
       }
-
-      let gptResponse = await getGPTRecommendation(gptPrompt);
-
-      if (!gptResponse) {
-        // GPT failed or quota exceeded
-        gptResponse = `Here are some options that might suit you well. If you're looking for something more specific like OTT benefits or a budget range, just ask! 😊`;
-      }
-
-      // Combine GPT recommendation with plan list
-      responseText = gptResponse + '\n\n' + responseText;
     } else {
-      // Handle case when no plans found and GPT might fail
-      const gptPrompt = `User searched for ${operator ? operator.toUpperCase() : "ANY"} ${planType.toUpperCase()} plans but none were found matching their criteria.`;
-      
-      let gptResponse = await getGPTRecommendation(gptPrompt);
-      
-      if (!gptResponse) {
-        responseText = `Hmm, I couldn't find any plans matching your filters right now 😕. Try relaxing the filters or asking for a different operator. I'm here to help!`;
+      console.log(`⏱️ Skipping GPT (time: ${elapsed()}ms) - sending direct results`);
+      // Skip GPT entirely if time is running out
+      if (plansToShow.length === 0) {
+        responseText = `No plans found matching your criteria. Try adjusting your filters or ask for help! 😊`;
       } else {
-        responseText = gptResponse;
+        responseText = `Here are the plans that match your requirements:\n\n` + responseText;
       }
     }
 
@@ -1319,6 +1346,7 @@ Avoid listing everything — pick top plans only and explain why.
 
     console.log('Response:', responseText);
     console.log('Metadata:', response.metadata);
+    console.log(`⏱️ Total processing time: ${elapsed()}ms`);
 
     // Save response in smart cache (store the simple format)
     const cacheResponse = outputContexts.length > 0 ? 
@@ -1327,23 +1355,20 @@ Avoid listing everything — pick top plans only and explain why.
     setSmartCache(cacheKey, cacheResponse);
     console.log("💾 Response saved to smart cache");
 
-    res.json(response);
+    return res.json(response);
 
   } catch (error) {
     console.error('Webhook error:', error);
+    console.log(`⏱️ Error occurred at ${Date.now() - startTime}ms`);
 
-    // If we have a user query and no critical error, try GPT fallback
-    if (req.body?.queryResult?.queryText && !error.message.includes('Request timed out')) {
-      try {
-        const fallbackReply = await getGPTFallbackResponse(req.body.queryResult.queryText);
-        return res.json({ fulfillmentText: fallbackReply });
-      } catch (fallbackError) {
-        console.error('GPT fallback also failed:', fallbackError.message);
-      }
+    // Fast fallback for timeout errors
+    if (error.message.includes('timeout') || error.message.includes('DEADLINE')) {
+      return res.json({ 
+        fulfillmentText: "I'm processing your request. Please try again in a moment."
+      });
     }
-    console.error('Webhook error:', error);
 
-    // Provide specific error messages based on error type
+    // Quick error responses without GPT fallback to avoid further delays
     let userMessage = 'Sorry, we encountered an error. Please try again later.';
 
     if (error.message.includes('Request timed out')) {
@@ -1358,7 +1383,7 @@ Avoid listing everything — pick top plans only and explain why.
       userMessage = 'Our data provider is experiencing issues. Please try again shortly.';
     }
 
-    res.json({ 
+    return res.json({ 
       fulfillmentText: userMessage,
       metadata: {
         error: true,
@@ -1367,7 +1392,7 @@ Avoid listing everything — pick top plans only and explain why.
       }
     });
   }
-});
+}
 
 // Enhanced logging middleware
 app.use((req, res, next) => {

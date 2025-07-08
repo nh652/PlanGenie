@@ -27,6 +27,8 @@ export async function getGPTRecommendation(prompt) {
         { role: 'user', content: prompt.trim() }
       ],
       temperature: 0.8,
+      max_tokens: 150, // Limit response length for faster processing
+      timeout: 2000 // 2 second timeout
     });
 
     return chat.choices[0].message.content.trim();
