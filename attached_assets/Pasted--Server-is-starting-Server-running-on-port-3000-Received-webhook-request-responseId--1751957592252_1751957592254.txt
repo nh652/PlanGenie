@@ -1,0 +1,595 @@
+🚀 Server is starting...
+Server running on port 3000
+Received webhook request: {
+  "responseId": "fb10c341-5574-44b3-b23f-ed6b8c9b4570-60174e1f",
+  "queryResult": {
+    "queryText": "suggest airtel plans",
+    "parameters": {
+      "number": [],
+      "duration": ""
+    },
+    "allRequiredParamsPresent": true,
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 16,
+          "originalOperator": "jio",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": ""
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0,
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": ""
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/41441b4c-0455-4538-8663-0e49d48d2952",
+      "displayName": "Plan Suggestion - Prepaid"
+    },
+    "intentDetectionConfidence": 0.543856,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {"number":[],"duration":""}
+Query text: suggest airtel plans
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 16,
+    originalOperator: 'jio',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: ''
+  }
+}
+IS SHOW MORE INTENT: false
+Selected operator: airtel
+Selected plan type: prepaid
+Requested features: []
+Voice-only plan requested: false
+Extracted budget: null
+OFFSET USED: 0
+Successfully fetched fresh plan data
+Found 17 prepaid plans for airtel
+Sample plan data:
+[{"price":199,"data":"2GB","validity":28,"benefits":"UL Calling, 100 SMS/day","type":"prepaid","provider":"airtel"},{"price":509,"data":"6GB","validity":84,"benefits":"UL calling, 100SMS/day","type":"prepaid","provider":"airtel"}]
+Plan: ₹199, Validity: 28, Parsed days: 28
+Plan: ₹509, Validity: 84, Parsed days: 84
+Plan: ₹1999, Validity: 365, Parsed days: 365
+Plan: ₹469, Validity: 84, Parsed days: 84
+Plan: ₹1849, Validity: 365, Parsed days: 365
+Plan: ₹299, Validity: 28, Parsed days: 28
+Plan: ₹349, Validity: 28, Parsed days: 28
+Plan: ₹409, Validity: 28, Parsed days: 28
+Plan: ₹449, Validity: 28, Parsed days: 28
+Plan: ₹579, Validity: 56, Parsed days: 56
+Plan: ₹649, Validity: 56, Parsed days: 56
+Plan: ₹859, Validity: 84, Parsed days: 84
+Plan: ₹979, Validity: 84, Parsed days: 84
+Plan: ₹3599, Validity: 365, Parsed days: 365
+Plan: ₹22, Validity: 1 day, Parsed days: 1
+Plan: ₹33, Validity: 1 day, Parsed days: 1
+Plan: ₹77, Validity: Plan validity, Parsed days: null
+Filtered to 17 matching plans
+PLANS RETURNED: 8
+Response: Here are AIRTEL PREPAID plans:
+
+- ₹199: 2GB (28 days) UL Calling, 100 SMS/day
+- ₹509: 6GB (84 days) UL calling, 100SMS/day
+- ₹1999: 24GB (365 days) UL calling, 100 SMS/day
+- ₹469: 0GB (84 days) Unlimited voice calls, 900 SMS
+- ₹1849: 0GB (365 days) Unlimited voice calls, 3600 SMS
+- ₹299: 1GB/day (28 days) UL Calling, 100SMS/day
+- ₹349: 1.5GB/day (28 days) UL Calling, 100SMS/day
+- ₹409: 2.5GB/day (28 days) UL Calling, 100SMS/day, Unlimited 5G data
+
+(Showing first 8 of 17 available plans) - Ask for "more" to see additional plans.
+Metadata: {
+  timestamp: '2025-07-08T06:50:31.679Z',
+  planCount: 8,
+  pageOffset: 0,
+  totalAvailable: 17,
+  operator: 'airtel',
+  planType: 'prepaid',
+  cached: true
+}
+💾 Response saved to smart cache
+Received webhook request: {
+  "responseId": "0d44362c-09d7-4653-bc7c-42f69921c4b3-60174e1f",
+  "queryResult": {
+    "queryText": "more",
+    "parameters": {},
+    "allRequiredParamsPresent": true,
+    "fulfillmentMessages": [
+      {
+        "text": {
+          "text": [
+            ""
+          ]
+        }
+      }
+    ],
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 8,
+          "originalOperator": "airtel",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": ""
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/9e32db35-dc09-4e7d-b5b8-186eef0e5ac9",
+      "displayName": "Show More"
+    },
+    "intentDetectionConfidence": 1,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {}
+Query text: more
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 8,
+    originalOperator: 'airtel',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: ''
+  }
+}
+IS SHOW MORE INTENT: true
+Restored operator from pagination context: airtel
+Selected operator: airtel
+Restored plan type from pagination context: prepaid
+Selected plan type: prepaid
+Requested features: []
+Voice-only plan requested: false
+Extracted budget: null
+OFFSET USED: 8
+Found 17 prepaid plans for airtel
+Sample plan data:
+[{"price":199,"data":"2GB","validity":28,"benefits":"UL Calling, 100 SMS/day","type":"prepaid","provider":"airtel"},{"price":509,"data":"6GB","validity":84,"benefits":"UL calling, 100SMS/day","type":"prepaid","provider":"airtel"}]
+Plan: ₹199, Validity: 28, Parsed days: 28
+Plan: ₹509, Validity: 84, Parsed days: 84
+Plan: ₹1999, Validity: 365, Parsed days: 365
+Plan: ₹469, Validity: 84, Parsed days: 84
+Plan: ₹1849, Validity: 365, Parsed days: 365
+Plan: ₹299, Validity: 28, Parsed days: 28
+Plan: ₹349, Validity: 28, Parsed days: 28
+Plan: ₹409, Validity: 28, Parsed days: 28
+Plan: ₹449, Validity: 28, Parsed days: 28
+Plan: ₹579, Validity: 56, Parsed days: 56
+Plan: ₹649, Validity: 56, Parsed days: 56
+Plan: ₹859, Validity: 84, Parsed days: 84
+Plan: ₹979, Validity: 84, Parsed days: 84
+Plan: ₹3599, Validity: 365, Parsed days: 365
+Plan: ₹22, Validity: 1 day, Parsed days: 1
+Plan: ₹33, Validity: 1 day, Parsed days: 1
+Plan: ₹77, Validity: Plan validity, Parsed days: null
+Filtered to 17 matching plans
+PLANS RETURNED: 8
+Response: Here are AIRTEL PREPAID plans:
+
+- ₹449: 3GB/day (28 days) UL Calling, 100SMS/day, Unlimited 5G data
+- ₹579: 1.5GB/day (56 days) UL Calling, 100SMS/day
+- ₹649: 2GB/day (56 days) UL Calling, 100SMS/day, Unlimited 5G data
+- ₹859: 1.5GB/day (84 days) UL Calling, 100SMS/day
+- ₹979: 2GB/day (84 days) UL Calling, 100SMS/day, Unlimited 5G data
+- ₹3599: 2GB/day (365 days) UL Calling, 100SMS/day, Unlimited 5G data
+- ₹22: 1GB (1 day)
+- ₹33: 2GB (1 day)
+
+(Showing 9-16 of 17 available plans) - Ask for "more" to see additional plans.
+Metadata: {
+  timestamp: '2025-07-08T06:50:43.691Z',
+  planCount: 8,
+  pageOffset: 8,
+  totalAvailable: 17,
+  operator: 'airtel',
+  planType: 'prepaid',
+  cached: true
+}
+💾 Response saved to smart cache
+Received webhook request: {
+  "responseId": "64416f81-2c49-41be-b508-4d934357310e-60174e1f",
+  "queryResult": {
+    "queryText": "show voice only plans",
+    "parameters": {},
+    "allRequiredParamsPresent": true,
+    "fulfillmentMessages": [
+      {
+        "text": {
+          "text": [
+            ""
+          ]
+        }
+      }
+    ],
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 16,
+          "originalOperator": "airtel",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": ""
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/9e32db35-dc09-4e7d-b5b8-186eef0e5ac9",
+      "displayName": "Show More"
+    },
+    "intentDetectionConfidence": 0.5770881,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {}
+Query text: show voice only plans
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 16,
+    originalOperator: 'airtel',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: ''
+  }
+}
+IS SHOW MORE INTENT: true
+Restored operator from pagination context: airtel
+Selected operator: airtel
+Restored plan type from pagination context: prepaid
+Selected plan type: prepaid
+Requested features: []
+Voice-only plan requested: true
+Extracted budget: null
+OFFSET USED: 16
+Found 17 prepaid plans for airtel
+Sample plan data:
+[{"price":199,"data":"2GB","validity":28,"benefits":"UL Calling, 100 SMS/day","type":"prepaid","provider":"airtel"},{"price":509,"data":"6GB","validity":84,"benefits":"UL calling, 100SMS/day","type":"prepaid","provider":"airtel"}]
+Found 2 voice-only plans
+Plan: ₹469, Validity: 84, Parsed days: 84
+Plan: ₹1849, Validity: 365, Parsed days: 365
+Filtered to 2 matching plans
+PLANS RETURNED: 0
+Response: No matching AIRTEL PREPAID VOICE-ONLY plans found.
+Metadata: {
+  timestamp: '2025-07-08T06:51:02.224Z',
+  planCount: 0,
+  pageOffset: 16,
+  totalAvailable: 2,
+  operator: 'airtel',
+  planType: 'prepaid',
+  cached: true
+}
+💾 Response saved to smart cache
+Received webhook request: {
+  "responseId": "d78f545e-4ccf-48b2-ae06-3e0d5aa374b2-60174e1f",
+  "queryResult": {
+    "queryText": "show jio voice only plans",
+    "parameters": {},
+    "allRequiredParamsPresent": true,
+    "fulfillmentMessages": [
+      {
+        "text": {
+          "text": [
+            ""
+          ]
+        }
+      }
+    ],
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 16,
+          "originalOperator": "airtel",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": ""
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/9e32db35-dc09-4e7d-b5b8-186eef0e5ac9",
+      "displayName": "Show More"
+    },
+    "intentDetectionConfidence": 0.44180816,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {}
+Query text: show jio voice only plans
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 16,
+    originalOperator: 'airtel',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: ''
+  }
+}
+IS SHOW MORE INTENT: true
+Restored operator from pagination context: airtel
+Selected operator: airtel
+Restored plan type from pagination context: prepaid
+Selected plan type: prepaid
+Requested features: []
+Voice-only plan requested: true
+Extracted budget: null
+OFFSET USED: 16
+Found 17 prepaid plans for airtel
+Sample plan data:
+[{"price":199,"data":"2GB","validity":28,"benefits":"UL Calling, 100 SMS/day","type":"prepaid","provider":"airtel"},{"price":509,"data":"6GB","validity":84,"benefits":"UL calling, 100SMS/day","type":"prepaid","provider":"airtel"}]
+Found 2 voice-only plans
+Plan: ₹469, Validity: 84, Parsed days: 84
+Plan: ₹1849, Validity: 365, Parsed days: 365
+Filtered to 2 matching plans
+PLANS RETURNED: 0
+Response: No matching AIRTEL PREPAID VOICE-ONLY plans found.
+Metadata: {
+  timestamp: '2025-07-08T06:51:15.539Z',
+  planCount: 0,
+  pageOffset: 16,
+  totalAvailable: 2,
+  operator: 'airtel',
+  planType: 'prepaid',
+  cached: true
+}
+💾 Response saved to smart cache
+Received webhook request: {
+  "responseId": "660a89a6-0b59-4c11-8e69-2f98dc19e9f0-60174e1f",
+  "queryResult": {
+    "queryText": "show voice only plans",
+    "parameters": {},
+    "allRequiredParamsPresent": true,
+    "fulfillmentMessages": [
+      {
+        "text": {
+          "text": [
+            ""
+          ]
+        }
+      }
+    ],
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 16,
+          "originalOperator": "airtel",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": ""
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/9e32db35-dc09-4e7d-b5b8-186eef0e5ac9",
+      "displayName": "Show More"
+    },
+    "intentDetectionConfidence": 0.5770881,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {}
+Query text: show voice only plans
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 16,
+    originalOperator: 'airtel',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: ''
+  }
+}
+IS SHOW MORE INTENT: true
+Restored operator from pagination context: airtel
+Selected operator: airtel
+Restored plan type from pagination context: prepaid
+Selected plan type: prepaid
+Requested features: []
+Voice-only plan requested: true
+Extracted budget: null
+OFFSET USED: 16
+✅ Serving from smart cache
+Received webhook request: {
+  "responseId": "8b29de20-de95-49dc-9065-9653c21f8e68-60174e1f",
+  "queryResult": {
+    "queryText": "show jio voice only plans",
+    "parameters": {},
+    "allRequiredParamsPresent": true,
+    "fulfillmentMessages": [
+      {
+        "text": {
+          "text": [
+            ""
+          ]
+        }
+      }
+    ],
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 16,
+          "originalOperator": "airtel",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": ""
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/9e32db35-dc09-4e7d-b5b8-186eef0e5ac9",
+      "displayName": "Show More"
+    },
+    "intentDetectionConfidence": 0.44180816,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {}
+Query text: show jio voice only plans
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 16,
+    originalOperator: 'airtel',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: ''
+  }
+}
+IS SHOW MORE INTENT: true
+Restored operator from pagination context: airtel
+Selected operator: airtel
+Restored plan type from pagination context: prepaid
+Selected plan type: prepaid
+Requested features: []
+Voice-only plan requested: true
+Extracted budget: null
+OFFSET USED: 16
+✅ Serving from smart cache
