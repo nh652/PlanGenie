@@ -540,33 +540,46 @@ async function processWebhookRequest(req, res, startTime) {
     }
 
     // Handle conversational queries first with GPT (with timeout)
-    const conversationalQueries = ['hi', 'hello', 'good morning', 'how are you', 'thank you', 'bye', 'thanks'];
+    const conversationalQueries = ['hi', 'hello', 'good morning', 'good afternoon', 'good evening', 'how are you', 'thank you', 'bye', 'thanks'];
     const normalizedQuery = queryText.toLowerCase().trim();
 
     if (conversationalQueries.some(q => normalizedQuery.includes(q))) {
       try {
-        console.log(`⏱️ Starting GPT call at ${elapsed()}ms`);
+        console.log(`⏱️ Starting GPT call for greeting at ${elapsed()}ms`);
         const gptPromise = openai.chat.completions.create({
           model: "gpt-3.5-turbo",
           messages: [
             { role: "system", content: "You are a friendly mobile plan assistant. Keep responses brief and warm. Always offer to help with mobile plans." },
             { role: "user", content: queryText }
           ],
-          max_tokens: 30, // Reduced for faster response
-          timeout: 2000 // 2 second timeout
+          max_tokens: 50,
+          timeout: 3000
         });
 
         const gptReply = await Promise.race([
           gptPromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('GPT timeout')), 2000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('GPT timeout')), 2500))
         ]);
 
         console.log(`⏱️ GPT response received at ${elapsed()}ms`);
         return res.json({ fulfillmentText: gptReply.choices[0].message.content });
       } catch (error) {
         console.error('GPT API error for conversational query:', error);
-        // Fast fallback
-        return res.json({ fulfillmentText: "Hello! I'm here to help you find the perfect mobile plan. What are you looking for?" });
+        
+        // Better fallback responses based on the greeting type
+        let fallbackResponse = "Hello! I'm here to help you find the perfect mobile plan. What are you looking for?";
+        
+        if (normalizedQuery.includes('good morning')) {
+          fallbackResponse = "Good morning! Ready to find you the perfect mobile plan? What operator are you interested in?";
+        } else if (normalizedQuery.includes('good afternoon')) {
+          fallbackResponse = "Good afternoon! How can I help you with mobile plans today?";
+        } else if (normalizedQuery.includes('good evening')) {
+          fallbackResponse = "Good evening! Looking for a mobile plan? I can help you find the best deals!";
+        } else if (normalizedQuery.includes('how are you')) {
+          fallbackResponse = "I'm doing great, thanks for asking! Ready to help you find an amazing mobile plan. What are you looking for?";
+        }
+        
+        return res.json({ fulfillmentText: fallbackResponse });
       }
     }
 
