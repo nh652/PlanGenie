@@ -189,9 +189,11 @@ function correctOperatorName(input) {
 // Available operators in our database
 const AVAILABLE_OPERATORS = CONFIG.AVAILABLE_OPERATORS;
 
-// Fetch and cache plans from GitHub, with User-Agent header and timeout
-async function getPlansData() {
+// Fetch and cache plans from GitHub, with User-Agent header, timeout, and retry logic
+async function getPlansData(retryCount = 0) {
   const now = Date.now();
+  const maxRetries = 2;
+  
   if (!cachedPlans || now - lastFetchTime > CACHE_DURATION) {
     try {
       const controller = new AbortController();
@@ -205,12 +207,41 @@ async function getPlansData() {
       });
       
       clearTimeout(timeoutId);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       cachedPlans = await response.json();
       lastFetchTime = now;
+      console.log('Successfully fetched fresh plan data');
+      
     } catch (error) {
-      console.error('Failed to fetch plans:', error);
-      throw error;
+      console.error(`Failed to fetch plans (attempt ${retryCount + 1}):`, error);
+      
+      // Retry logic with exponential backoff
+      if (retryCount < maxRetries) {
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s delays
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return getPlansData(retryCount + 1);
+      }
+      
+      // If we have cached data, use it despite being stale
+      if (cachedPlans) {
+        console.warn('Using stale cached data due to fetch failure');
+        const cacheAge = Math.round((now - lastFetchTime) / 60000); // minutes
+        console.warn(`Cache is ${cacheAge} minutes old`);
+        return cachedPlans;
+      }
+      
+      // No cached data available - provide a more specific error
+      const errorMessage = error.name === 'AbortError' ? 
+        'Request timed out while fetching plan data' :
+        error.message.includes('fetch') ? 
+        'Unable to connect to plan data source' :
+        `Data fetch failed: ${error.message}`;
+        
+      throw new Error(`${errorMessage}. Please try again in a few moments.`);
     }
   }
   return cachedPlans;
@@ -968,7 +999,30 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
   } catch (error) {
     console.error('Webhook error:', error);
-    res.json({ fulfillmentText: 'Sorry, we encountered an error. Please try again later.' });
+    
+    // Provide specific error messages based on error type
+    let userMessage = 'Sorry, we encountered an error. Please try again later.';
+    
+    if (error.message.includes('Request timed out')) {
+      userMessage = 'Our plan data service is responding slowly. Please try again in a moment.';
+    } else if (error.message.includes('Unable to connect')) {
+      userMessage = 'We\'re having trouble accessing our plan database. Please try again shortly.';
+    } else if (error.message.includes('Data fetch failed')) {
+      userMessage = 'Our plan data is temporarily unavailable. Please try again in a few minutes.';
+    } else if (error.message.includes('HTTP 429') || error.message.includes('rate limit')) {
+      userMessage = 'We\'re experiencing high traffic. Please wait a moment and try again.';
+    } else if (error.message.includes('HTTP 5')) {
+      userMessage = 'Our data provider is experiencing issues. Please try again shortly.';
+    }
+    
+    res.json({ 
+      fulfillmentText: userMessage,
+      metadata: {
+        error: true,
+        timestamp: new Date().toISOString(),
+        cached: cachedPlans !== null
+      }
+    });
   }
 });
 
