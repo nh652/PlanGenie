@@ -1,0 +1,170 @@
+🚀 Server is starting...
+Server running on port 3000
+Environment: development
+Received webhook request: {
+  "responseId": "c68ee343-3001-46d8-94e5-0b6c2bbd21d4-60174e1f",
+  "queryResult": {
+    "queryText": "suggest vi plans",
+    "parameters": {
+      "number": [],
+      "duration": ""
+    },
+    "allRequiredParamsPresent": true,
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 8,
+          "originalOperator": "jio",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": ""
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "lifespanCount": 1,
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0,
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": ""
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/41441b4c-0455-4538-8663-0e49d48d2952",
+      "displayName": "Plan Suggestion - Prepaid"
+    },
+    "intentDetectionConfidence": 0.51250815,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {"number":[],"duration":""}
+Query text: suggest vi plans
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 8,
+    originalOperator: 'jio',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: ''
+  }
+}
+IS SHOW MORE INTENT: false
+IS FOLLOW UP INTENT: false
+IS FEEDBACK INTENT: false
+Carried forward operator: jio
+Webhook error: ReferenceError: Cannot access 'planType' before initialization
+    at file:///home/runner/workspace/index.js:591:5
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at validateWebhookRequest (file:///home/runner/workspace/index.js:458:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/runner/workspace/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+GPT fallback error: 401 Incorrect API key provided: sk-or-v1*************************************************************a042. You can find your API key at https://platform.openai.com/account/api-keys.
+Received webhook request: {
+  "responseId": "389aa374-de52-449a-8d43-4b8e0d5ad7ae-60174e1f",
+  "queryResult": {
+    "queryText": "suggest airtel plans",
+    "parameters": {
+      "number": [],
+      "duration": ""
+    },
+    "allRequiredParamsPresent": true,
+    "outputContexts": [
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination",
+        "lifespanCount": 5,
+        "parameters": {
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": "",
+          "offset": 8,
+          "originalOperator": "jio",
+          "originalPlanType": "prepaid",
+          "originalBudget": "",
+          "originalDuration": ""
+        }
+      },
+      {
+        "name": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/__system_counters__",
+        "parameters": {
+          "no-input": 0,
+          "no-match": 0,
+          "number": [],
+          "number.original": [],
+          "duration": "",
+          "duration.original": ""
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/plansuggestorbot-rgff/agent/intents/41441b4c-0455-4538-8663-0e49d48d2952",
+      "displayName": "Plan Suggestion - Prepaid"
+    },
+    "intentDetectionConfidence": 0.543856,
+    "languageCode": "en"
+  },
+  "originalDetectIntentRequest": {
+    "source": "DIALOGFLOW_CONSOLE",
+    "payload": {}
+  },
+  "session": "projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1"
+}
+Parameters: {"number":[],"duration":""}
+Query text: suggest airtel plans
+PAGINATION CONTEXT: {
+  name: 'projects/plansuggestorbot-rgff/agent/sessions/6b34c1cc-ea15-8a37-cbd3-5eb8a67e40e1/contexts/pagination',
+  lifespanCount: 5,
+  parameters: {
+    number: [],
+    'number.original': [],
+    duration: '',
+    'duration.original': '',
+    offset: 8,
+    originalOperator: 'jio',
+    originalPlanType: 'prepaid',
+    originalBudget: '',
+    originalDuration: ''
+  }
+}
+IS SHOW MORE INTENT: false
+IS FOLLOW UP INTENT: false
+IS FEEDBACK INTENT: false
+Carried forward operator: jio
+Webhook error: ReferenceError: Cannot access 'planType' before initialization
+    at file:///home/runner/workspace/index.js:591:5
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at validateWebhookRequest (file:///home/runner/workspace/index.js:458:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/runner/workspace/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+GPT fallback error: 401 Incorrect API key provided: sk-or-v1*************************************************************a042. You can find your API key at https://platform.openai.com/account/api-keys.
