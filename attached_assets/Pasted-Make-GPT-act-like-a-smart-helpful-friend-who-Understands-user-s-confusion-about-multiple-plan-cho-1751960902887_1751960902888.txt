@@ -1,0 +1,64 @@
+Make GPT act like a smart, helpful friend who:
+
+Understands user's confusion about multiple plan choices.
+
+Highlights the best picks.
+
+Justifies the suggestions.
+
+Invites user to ask more.
+
+✅ Replace your current prompt logic with:
+js
+Copy
+Edit
+const systemPrompt = `
+You are PlanGenie — a helpful, witty, and friendly telecom assistant.
+Speak like a smart friend who’s good at comparing plans.
+Your job is to:
+- Understand the user’s preferences based on the provided plans.
+- Recommend 1-2 standout plans clearly, using bullet points.
+- Justify why they are better (value for money, data, validity, etc.).
+- Sound conversational, not robotic.
+- End with a short follow-up like: "Want me to show more options?" or "Need something with OTT benefits?".
+`;
+
+export async function getGPTRecommendation(prompt) {
+  try {
+    const chat = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: systemPrompt.trim() },
+        { role: 'user', content: prompt.trim() }
+      ],
+      temperature: 0.8,
+    });
+
+    return chat.choices[0].message.content.trim();
+  } catch (err) {
+    console.error('❌ GPT API Error:', err.message);
+    return null;
+  }
+}
+📝 Format of Prompt You Send to GPT:
+Structure the prompt string like this before calling the above function:
+
+js
+Copy
+Edit
+const gptPrompt = `
+User is searching for ${operator ? operator.toUpperCase() : "ANY"} ${planType.toUpperCase()} plans.
+Their preferences:
+- Budget: ${budget || "Not specified"}
+- Duration: ${targetDuration ? `${targetDuration} days` : "Any"}
+- Voice only: ${isVoiceOnly ? "Yes" : "No"}
+- Special features: ${requestedFeatures.length > 0 ? requestedFeatures.join(', ') : "None"}
+
+Here are the filtered plans:
+
+${plansToShow.map(p => {
+  const validity = p.validity ? `(${p.validity})` : '';
+  const benefits = [p.benefits, p.additional_benefits].filter(Boolean).join(', ');
+  return `• ₹${p.price}: ${p.data} ${validity}${benefits ? ' - ' + benefits : ''}`;
+}).join('\n')}
+`;
