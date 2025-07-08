@@ -7,6 +7,23 @@ import { OpenAI } from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+async function getGPTFallbackResponse(userInput) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: "You are a friendly mobile plan assistant who also handles casual conversation if no plan is being discussed." },
+        { role: 'user', content: userInput }
+      ]
+    });
+
+    return response.choices[0].message.content.trim();
+  } catch (err) {
+    console.error("GPT fallback error:", err.message);
+    return "Sorry, I didn't catch that.";
+  }
+}
+
 // Environment-based configuration
 const CONFIG = {
   // Server settings
@@ -1171,6 +1188,17 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     res.json(response);
 
   } catch (error) {
+    console.error('Webhook error:', error);
+    
+    // If we have a user query and no critical error, try GPT fallback
+    if (req.body?.queryResult?.queryText && !error.message.includes('Request timed out')) {
+      try {
+        const fallbackReply = await getGPTFallbackResponse(req.body.queryResult.queryText);
+        return res.json({ fulfillmentText: fallbackReply });
+      } catch (fallbackError) {
+        console.error('GPT fallback also failed:', fallbackError.message);
+      }
+    }
     console.error('Webhook error:', error);
     
     // Provide specific error messages based on error type
