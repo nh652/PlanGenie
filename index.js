@@ -3,6 +3,9 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import fetch from 'node-fetch';
 import { getGPTRecommendation } from './gptHelper.js';
+import { OpenAI } from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Environment-based configuration
 const CONFIG = {
@@ -462,16 +465,26 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     console.log("PAGINATION CONTEXT:", paginationContext);
     console.log("IS SHOW MORE INTENT:", isShowMoreIntent);
 
-    // Handle conversational queries first
-    const conversationalResponses = CONFIG.CONVERSATIONAL_RESPONSES;
-
-    // Check for conversational queries
+    // Handle conversational queries first with GPT
+    const conversationalQueries = ['hi', 'hello', 'good morning', 'how are you', 'thank you', 'bye', 'thanks'];
     const normalizedQuery = queryText.toLowerCase().trim();
-    for (const [trigger, responses] of Object.entries(conversationalResponses)) {
-      if (normalizedQuery.includes(trigger)) {
-        // Return a random response from the available options
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        return res.json({ fulfillmentText: randomResponse });
+    
+    if (conversationalQueries.some(q => normalizedQuery.includes(q))) {
+      try {
+        const gptReply = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            { role: "system", content: "You are a friendly mobile plan assistant. Keep responses brief and warm. Always offer to help with mobile plans." },
+            { role: "user", content: queryText }
+          ],
+          max_tokens: 60,
+        });
+        
+        return res.json({ fulfillmentText: gptReply.choices[0].message.content });
+      } catch (error) {
+        console.error('GPT API error for conversational query:', error);
+        // Fallback to a simple response if GPT fails
+        return res.json({ fulfillmentText: "Hello! I'm here to help you find the perfect mobile plan. What are you looking for?" });
       }
     }
 
