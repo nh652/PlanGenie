@@ -131,6 +131,31 @@ function setCachedResponse(key, response) {
   }
 }
 
+// Smart response cache for complete query responses
+const smartCache = new Map();
+const SMART_CACHE_TTL = 300000; // 5 minutes
+
+function getSmartCache(key) {
+  const entry = smartCache.get(key);
+  if (entry && Date.now() - entry.timestamp < SMART_CACHE_TTL) {
+    return entry.response;
+  }
+  return null;
+}
+
+function setSmartCache(key, response) {
+  smartCache.set(key, {
+    response,
+    timestamp: Date.now()
+  });
+
+  // Clean old entries if too many
+  if (smartCache.size > 100) {
+    const oldestKey = smartCache.keys().next().value;
+    smartCache.delete(oldestKey);
+  }
+}
+
 // Root endpoint for Replit preview
 app.get('/', (req, res) => {
   res.send('Telecom Plan Suggestion API is running');
@@ -588,6 +613,33 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     console.log('Extracted budget:', budget);
 
+    // Build a cache key using key parameters
+    const cacheKey = JSON.stringify({
+      queryText,
+      operator,
+      planType,
+      budget,
+      duration: targetDuration,
+      offset,
+      isShowMoreIntent,
+      requestedFeatures: requestedFeatures.sort(), // Sort to ensure consistent ordering
+      isVoiceOnly,
+      minDailyData,
+      sortBy
+    });
+
+    // Check smart response cache
+    const cachedResponse = getSmartCache(cacheKey);
+    if (cachedResponse) {
+      console.log("✅ Serving from smart cache");
+      // Update timestamp in metadata for cache hit
+      if (cachedResponse.metadata) {
+        cachedResponse.metadata.timestamp = new Date().toISOString();
+        cachedResponse.metadata.fromCache = true;
+      }
+      return res.json(cachedResponse);
+    }
+
     // Get and process data
     const data = await getPlansData();
     let plans = [];
@@ -995,6 +1047,11 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     
     console.log('Response:', responseText);
     console.log('Metadata:', response.metadata);
+    
+    // Save response in smart cache
+    setSmartCache(cacheKey, response);
+    console.log("💾 Response saved to smart cache");
+    
     res.json(response);
 
   } catch (error) {
