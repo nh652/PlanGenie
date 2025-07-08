@@ -478,9 +478,11 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     const paginationContext = contexts.find(ctx => ctx.name.endsWith('/contexts/pagination'));
 
     const isShowMoreIntent = queryResult.intent?.displayName?.toLowerCase().includes("show more");
+    const isFollowUpIntent = queryResult.intent?.displayName?.toLowerCase().includes("follow up");
 
     console.log("PAGINATION CONTEXT:", paginationContext);
     console.log("IS SHOW MORE INTENT:", isShowMoreIntent);
+    console.log("IS FOLLOW UP INTENT:", isFollowUpIntent);
 
     // Handle conversational queries first with GPT
     const conversationalQueries = ['hi', 'hello', 'good morning', 'how are you', 'thank you', 'bye', 'thanks'];
@@ -578,6 +580,47 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     if (!targetDuration && paginationContext?.parameters?.originalDuration) {
       targetDuration = paginationContext.parameters.originalDuration;
       console.log("Carried forward duration:", targetDuration);
+    }
+
+    // Handle follow-up intent adjustments
+    if (isFollowUpIntent && paginationContext) {
+      console.log("Processing follow-up intent with query:", queryText);
+      
+      // Analyze query text for adjustments
+      if (queryText.includes('more data') || queryText.includes('higher data')) {
+        minDailyData = (minDailyData || 1) + 0.5;
+        console.log("Follow-up: Increased min daily data to", minDailyData);
+      }
+      
+      if (queryText.includes('2 month') || queryText.includes('two month')) {
+        targetDuration = 56;
+        console.log("Follow-up: Set duration to 2 months (56 days)");
+      }
+      
+      if (queryText.includes('3 month') || queryText.includes('three month')) {
+        targetDuration = 84;
+        console.log("Follow-up: Set duration to 3 months (84 days)");
+      }
+      
+      if (queryText.includes('longer') || queryText.includes('more validity')) {
+        targetDuration = targetDuration ? Math.min(targetDuration * 2, 365) : 84;
+        console.log("Follow-up: Increased duration to", targetDuration);
+      }
+      
+      if (queryText.includes('cheaper') || queryText.includes('reduce budget') || queryText.includes('lower price')) {
+        budget = budget ? Math.floor(budget * 0.8) : 300;
+        console.log("Follow-up: Reduced budget to", budget);
+      }
+      
+      if (queryText.includes('ott') || queryText.includes('streaming')) {
+        requestedFeatures.push('ott');
+        console.log("Follow-up: Added OTT requirement");
+      }
+      
+      if (queryText.includes('unlimited') || queryText.includes('more calling')) {
+        requestedFeatures.push('unlimited');
+        console.log("Follow-up: Added unlimited requirement");
+      }
     }
 
     if (isShowMoreIntent && paginationContext?.parameters?.originalOperator) {
@@ -1165,8 +1208,23 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
         return `₹${plan.price} - ${plan.data}, ${validityDays} days${benefits ? ', ' + benefits : ''}`;
       }).join('\n');
 
-      // Generate conversational prompt
-      const gptPrompt = `
+      // Generate conversational prompt based on intent type
+      let gptPrompt;
+      
+      if (isFollowUpIntent && paginationContext) {
+        // Follow-up prompt for refined searches
+        gptPrompt = `
+User had earlier searched ${planType} plans for ${operator || 'any operator'}. Now they asked: "${queryText}"
+These are the refined options based on their request:
+
+${summary}
+
+Suggest 1-2 better/different options based on their new concern. Respond naturally and mention what changed.
+Keep it conversational like: "Ah, you're looking for 2-month options? Here are better picks..."
+`;
+      } else {
+        // Regular prompt for initial searches
+        gptPrompt = `
 User is looking for ${operator || 'any'} ${planType} plans.
 Top filtered plans are:
 ${summary}
@@ -1174,6 +1232,7 @@ ${summary}
 Suggest 1-2 best options based on overall value. Recommend like a smart telecom friend.
 Avoid listing everything — pick top plans only and explain why.
 `;
+      }
 
       let gptResponse = await getGPTRecommendation(gptPrompt);
 
@@ -1197,19 +1256,24 @@ Avoid listing everything — pick top plans only and explain why.
       }
     }
 
-    // Set up output contexts for pagination
+    // Set up output contexts for pagination and follow-up
     let outputContexts = [];
 
-    if (filtered.length > offset + DEFAULT_PAGE_SIZE) {
+    // Always set pagination context if we have results (for follow-up intents)
+    if (plansToShow.length > 0) {
       outputContexts.push({
         name: `${session}/contexts/pagination`,
         lifespanCount: 5,
         parameters: {
-          offset: offset + DEFAULT_PAGE_SIZE,
+          offset: filtered.length > offset + DEFAULT_PAGE_SIZE ? offset + DEFAULT_PAGE_SIZE : 0,
           originalOperator: operator,
           originalPlanType: planType,
           originalBudget: budget,
-          originalDuration: targetDuration
+          originalDuration: targetDuration,
+          lastSummary: plansToShow.slice(0, 3).map(plan => {
+            const validityDays = parseValidity(plan.validity) || 28;
+            return `₹${plan.price} - ${plan.data}, ${validityDays} days`;
+          }).join('\n')
         }
       });
     }
