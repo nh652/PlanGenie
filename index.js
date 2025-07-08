@@ -9,25 +9,27 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function getGPTFallbackResponse(userInput) {
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: "You are a friendly mobile plan assistant who also handles casual conversation if no plan is being discussed." },
-        { role: 'user', content: userInput }
-      ]
-    });
-
-    return response.choices[0].message.content.trim();
+    const chat = await Promise.race([
+      openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are a friendly assistant. Talk casually when no specific task is asked." },
+          { role: "user", content: userInput }
+        ]
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("GPT timeout")), 1500))
+    ]);
+    return chat.choices[0].message.content.trim();
   } catch (err) {
     console.error("GPT fallback error:", err.message);
-    return "Sorry, I didn't catch that.";
+    return "Hey there! 😊 How can I assist you today with mobile plans?";
   }
 }
 
 // Environment-based configuration
 const CONFIG = {
   // Server settings
-  PORT: process.env.PORT || 3000,
+  PORT: process.env.PORT || 5000,
   NODE_ENV: process.env.NODE_ENV || 'development',
 
   // External API
@@ -470,6 +472,18 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
   try {
     console.log('Received webhook request:', JSON.stringify(req.body, null, 2));
+    
+    const { queryResult } = req.body;
+    const queryText = (queryResult.queryText || '').toLowerCase();
+    
+    // Conversational GPT fallback (for greetings etc.)
+    const conversationalTriggers = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "how are you", "what's up"];
+    const normalizedQuery = queryText.toLowerCase().trim();
+
+    if (conversationalTriggers.some(trigger => normalizedQuery.includes(trigger))) {
+      const gptReply = await getGPTFallbackResponse(queryText); // your GPT helper
+      return res.json({ fulfillmentText: gptReply });
+    }
     
     // Race between main logic and timeout
     const result = await Promise.race([
