@@ -1154,8 +1154,23 @@ ${plansToShow.map(p => {
 }).join('\n')}
 `;
 
-      const gptResponse = await getGPTRecommendation(gptPrompt);
-      if (gptResponse) {
+      let gptResponse = await getGPTRecommendation(gptPrompt);
+
+      if (!gptResponse) {
+        // GPT failed or quota exceeded
+        gptResponse = `Here are some options that might suit you well. If you're looking for something more specific like OTT benefits or a budget range, just ask! 😊`;
+      }
+
+      responseText = gptResponse;
+    } else {
+      // Handle case when no plans found and GPT might fail
+      const gptPrompt = `User searched for ${operator ? operator.toUpperCase() : "ANY"} ${planType.toUpperCase()} plans but none were found matching their criteria.`;
+      
+      let gptResponse = await getGPTRecommendation(gptPrompt);
+      
+      if (!gptResponse) {
+        responseText = `Hmm, I couldn't find any plans matching your filters right now 😕. Try relaxing the filters or asking for a different operator. I'm here to help!`;
+      } else {
         responseText = gptResponse;
       }
     }
