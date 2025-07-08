@@ -1137,10 +1137,22 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
 
     // Get GPT recommendation if we have plans to show
     if (plansToShow.length > 0) {
-      const userPrompt = `User asked: "${queryText}". These are ${plansToShow.length} matching mobile plans. Suggest the best plan among them, explain why, and make it sound friendly and helpful:\n\n` +
-        plansToShow.map(p => `- ₹${p.price}, ${p.data}, ${p.validity}, ${p.benefits}`).join('\n');
+      const planSummary = plansToShow.map((plan, idx) => {
+        return `${idx + 1}. ₹${plan.price} for ${plan.data} (${plan.validity || 'N/A'}): ${plan.benefits || 'No benefits listed'}`;
+      }).join('\n');
 
-      const gptResponse = await getGPTRecommendation(userPrompt);
+      const dynamicPrompt = `
+User is looking for ${operator || 'any'} ${planType} plans.
+Here are ${plansToShow.length} plans found:
+
+${planSummary}
+
+Give a natural-sounding recommendation for the best 1-2 plans.
+Be friendly and conversational.
+Also suggest if user should explore further options.
+`;
+
+      const gptResponse = await getGPTRecommendation(dynamicPrompt);
       if (gptResponse) {
         responseText = gptResponse;
       }
