@@ -831,8 +831,8 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
         }).join('\n');
 
       // Add note if results were limited
-      if (filtered.length > MAX_PLANS_TO_SHOW) {
-        responseText += `\n\n(Showing ${MAX_PLANS_TO_SHOW} out of ${filtered.length} available plans)`;
+      if (filtered.length > CONFIG.MAX_PLANS_TO_SHOW) {
+        responseText += `\n\n(Showing ${CONFIG.MAX_PLANS_TO_SHOW} out of ${filtered.length} available plans)`;
       }
     } else {
       // Add a fallback that shows plans with similar validity if nothing matches exactly
