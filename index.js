@@ -357,6 +357,16 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     console.log('Parameters:', JSON.stringify(params));
     console.log('Query text:', queryText);
 
+    // Extract session and pagination context from input contexts
+    const session = req.body.session || '';
+    const contexts = queryResult.outputContexts || [];
+    const paginationContext = contexts.find(ctx => ctx.name.endsWith('/contexts/pagination'));
+
+    const isShowMoreIntent = queryResult.intent?.displayName?.toLowerCase().includes("show more");
+    
+    console.log("PAGINATION CONTEXT:", paginationContext);
+    console.log("IS SHOW MORE INTENT:", isShowMoreIntent);
+
     // Handle conversational queries first
     const conversationalResponses = CONFIG.CONVERSATIONAL_RESPONSES;
 
@@ -763,9 +773,20 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       filtered = internationalPlans;
     }
 
-    // Limit number of plans to prevent response from being too long
-    const MAX_PLANS_TO_SHOW = CONFIG.MAX_PLANS_TO_SHOW;
-    const plansToShow = filtered.slice(0, MAX_PLANS_TO_SHOW);
+    // Pagination logic
+    let offset = 0;
+    const DEFAULT_PAGE_SIZE = CONFIG.MAX_PLANS_TO_SHOW;
+
+    if (isShowMoreIntent && paginationContext?.parameters?.offset) {
+      offset = paginationContext.parameters.offset;
+    }
+
+    console.log("OFFSET USED:", offset);
+    
+    // Slice plans based on offset
+    const plansToShow = filtered.slice(offset, offset + DEFAULT_PAGE_SIZE);
+    
+    console.log("PLANS RETURNED:", plansToShow.length);
 
     let responseText = '';
 
@@ -888,12 +909,27 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
       }
     }
 
-    // Format response with metadata
+    // Set up output contexts for pagination
+    let outputContexts = [];
+
+    if (filtered.length > offset + DEFAULT_PAGE_SIZE) {
+      outputContexts.push({
+        name: `${session}/contexts/pagination`,
+        lifespanCount: 5,
+        parameters: {
+          offset: offset + DEFAULT_PAGE_SIZE
+        }
+      });
+    }
+
+    // Format response with metadata and pagination
     const response = {
       fulfillmentText: responseText,
+      outputContexts,
       metadata: {
         timestamp: new Date().toISOString(),
         planCount: plansToShow.length,
+        pageOffset: offset,
         totalAvailable: filtered.length,
         operator: operator || 'all',
         planType: planType,
