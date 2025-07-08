@@ -474,6 +474,14 @@ app.post('/webhook', validateWebhookRequest, async (req, res) => {
     console.log('Received webhook request:', JSON.stringify(req.body, null, 2));
     
     const { queryResult } = req.body;
+    
+    // Bypass greetings to let Dialogflow handle them natively
+    if (queryResult.intent?.displayName?.toLowerCase().includes("greet") ||
+        queryResult.intent?.displayName?.toLowerCase().includes("welcome") ||
+        queryResult.intent?.displayName?.toLowerCase().includes("smalltalk")) {
+      return res.status(200).send(); // Do nothing, Dialogflow will respond
+    }
+    
     const queryText = (queryResult.queryText || '').toLowerCase();
     
     // Conversational GPT fallback (for greetings etc.)
