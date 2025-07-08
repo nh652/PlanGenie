@@ -34,41 +34,36 @@ PlanGenie is a smart chatbot that helps users discover the best mobile recharge 
 ```bash
 git clone https://github.com/nh652/PlanGenie.git
 cd PlanGenie
+```
 2. Install Dependencies
-bash
-Copy
-Edit
+```bash
 npm install
+```
 3. Setup Environment
+```bash
 Create a .env file (if using GPT):
-
-env
-Copy
-Edit
 OPENAI_API_KEY=your_api_key_here
 PORT=3000
 (Or skip GPT by commenting out GPT-related code in gptHelper.js and index.js)
-
+```
 4. Start Local Server
-bash
-Copy
-Edit
+```bash
 node index.js
+```
 🤖 Integrate with Dialogflow
+```bash
 Create a Dialogflow ES agent
-
-Enable webhook in intent (e.g. "Plan Suggestion")
-
-Use your deployed webhook URL (Replit / Render)
-
+Enable webhook in the intent (e.g. "Plan Suggestion")
+Use your deployed webhook URL (Replit / Render / Railway)
 Enable parameters: operator, budget, duration, etc.
+```
 
 🧠 GPT Integration (Optional)
+```bash
 Enable smarter replies using OpenAI GPT (gpt-3.5-turbo or gpt-4)
-
 Add your API key in .env file
-
 If quota exceeds, it gracefully disables GPT fallback
+```
 
 📂 Project Structure
 bash
@@ -81,9 +76,7 @@ Edit
 ├── /data                 # Telecom JSON data (remote or local)
 └── README.md
 📦 API Preview
-Test endpoints:
-
-bash
+http
 Copy
 Edit
 GET    /health
