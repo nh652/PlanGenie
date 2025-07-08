@@ -64,7 +64,6 @@ Enable parameters: operator, budget, duration, etc.
 🧠 GPT Integration (Optional)
 
 Enable smarter replies using OpenAI GPT (gpt-3.5-turbo or gpt-4)
-
 Add your API key in .env file
 
 If quota exceeds, it gracefully disables GPT fallback
@@ -87,7 +86,6 @@ POST   /webhook
 ```
 🙋‍♂️ Author
 👨‍💻 Nikhil Harwani
-🔗 GitHub Profile
 
 📜 License
 This project is open-source and free to use under the MIT License.
